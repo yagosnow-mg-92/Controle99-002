@@ -239,7 +239,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
   /// (via Autocomplete) as categorias já utilizadas anteriormente —
   /// atende ao requisito de "sem despesas fixas, com reaproveitamento".
   Widget _campoCategoria(DespesaProvider provider) {
-    return Autocomplete<String>(
+    return RawAutocomplete<String>(
       textEditingController: _categoriaController,
       focusNode: _categoriaFocusNode,
       optionsBuilder: (textEditingValue) {

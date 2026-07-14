@@ -4,7 +4,40 @@ Painel financeiro completo para motociclistas de aplicativos de entrega e
 transporte (99, Uber, iFood etc.). Controla ganhos, despesas, indicadores
 e desempenho da moto — 100% offline.
 
-## Status do desenvolvimento
+## ⚠️ Configuração única obrigatória: assinatura do APK
+
+**Sem isso, você vai continuar precisando desinstalar o app a cada nova build**
+(erro "conflito com pacote já existente"). Isso acontece porque, sem uma
+assinatura fixa, cada build do CI assina o APK com uma chave diferente, e o
+Android recusa instalar por cima uma versão com assinatura diferente da
+instalada.
+
+A correção já está pronta no código (`scripts/configurar_assinatura.py` +
+workflow), falta só cadastrar 4 *secrets* no GitHub (uma única vez):
+
+1. No repositório, vá em **Settings → Secrets and variables → Actions →
+   New repository secret**.
+2. Crie os 4 secrets abaixo:
+
+   | Nome do secret | Valor |
+   |---|---|
+   | `ANDROID_KEYSTORE_BASE64` | conteúdo do arquivo `moto_gestor_keystore_base64.txt` (uma linha enorme, cole ela inteira) |
+   | `ANDROID_KEYSTORE_PASSWORD` | `MotoGestor2026!` |
+   | `ANDROID_KEY_PASSWORD` | `MotoGestor2026!` |
+   | `ANDROID_KEY_ALIAS` | `motogestor` |
+
+3. Depois de criar os 4, faça um novo push — a próxima build já vai sair
+   assinada com essa chave fixa, e vai continuar assim para sempre
+   (guarde bem essas senhas, elas não devem mudar).
+
+**Importante:** como você já tem o app instalado no celular com a assinatura
+antiga (a "aleatória" de antes), a **primeira instalação com a nova
+assinatura fixa ainda vai pedir para desinstalar** (é inevitável, é a troca
+de chave). A partir dela, porém, todas as próximas atualizações vão
+funcionar direto por cima, sem perder dados nunca mais.
+
+---
+
 
 - [x] Etapa 1 — Arquitetura, tema, banco de dados, tela **Dashboard**, CI/CD
 - [x] Etapa 2 — Tela **Receita** (lançamento de ganhos)

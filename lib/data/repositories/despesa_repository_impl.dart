@@ -18,8 +18,9 @@ class DespesaRepositoryImpl implements DespesaRepository {
     String? where;
     List<Object?>? args;
 
+    // Fim exclusivo — ver comentário equivalente em ReceitaRepositoryImpl.
     if (inicio != null && fim != null) {
-      where = 'data BETWEEN ? AND ?';
+      where = 'data >= ? AND data < ?';
       args = [inicio.toIso8601String(), fim.toIso8601String()];
     }
 

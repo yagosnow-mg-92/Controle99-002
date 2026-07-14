@@ -18,8 +18,12 @@ class ReceitaRepositoryImpl implements ReceitaRepository {
     String? where;
     List<Object?>? args;
 
+    // Usamos `>= inicio AND < fim` (fim exclusivo) em vez de BETWEEN,
+    // que é inclusivo nos dois lados no SQLite. Isso evita que um
+    // lançamento salvo à meia-noite do dia seguinte seja contado
+    // erroneamente dentro do período anterior.
     if (inicio != null && fim != null) {
-      where = 'data BETWEEN ? AND ?';
+      where = 'data >= ? AND data < ?';
       args = [inicio.toIso8601String(), fim.toIso8601String()];
     }
 

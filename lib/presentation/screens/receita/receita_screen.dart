@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../domain/entities/receita.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/receita_provider.dart';
 
@@ -49,11 +50,12 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   }
 
   Future<void> _selecionarData() async {
+    final hoje = DateTime.now();
     final resultado = await showDatePicker(
       context: context,
       initialDate: _dataSelecionada,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime(hoje.year, hoje.month, hoje.day),
       locale: const Locale('pt', 'BR'),
     );
     if (resultado != null) {
@@ -257,6 +259,35 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     );
   }
 
+  Future<bool> _confirmarExclusao(Receita receita) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Excluir lançamento?',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Receita de ${Formatters.moeda(receita.valorRecebido)} do dia ${Formatters.data(receita.data)} será excluída permanentemente.',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Excluir', style: TextStyle(color: AppColors.despesa)),
+          ),
+        ],
+      ),
+    );
+    return confirmado ?? false;
+  }
+
   Widget _listaLancamentos(ReceitaProvider provider) {
     if (provider.carregando) {
       return const Padding(
@@ -292,6 +323,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
           return Dismissible(
             key: ValueKey(r.id),
             direction: DismissDirection.endToStart,
+            confirmDismiss: (_) => _confirmarExclusao(r),
             background: Container(
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 20),

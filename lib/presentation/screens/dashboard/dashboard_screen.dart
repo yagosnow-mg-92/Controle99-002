@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
+import '../../providers/configuracoes_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../widgets/indicador_card.dart';
 
@@ -20,6 +21,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().carregar();
+      context.read<ConfiguracoesProvider>().carregar();
     });
   }
 
@@ -45,6 +47,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _Cabecalho(),
                   const SizedBox(height: 20),
                   _CardsPrincipais(provider: provider),
+                  const SizedBox(height: 16),
+                  const _MetaDiaria(),
                   const SizedBox(height: 24),
                   const _TituloSecao('Últimos 7 dias'),
                   const SizedBox(height: 12),
@@ -238,6 +242,80 @@ class _GraficoDesempenho extends StatelessWidget {
       barWidth: 3,
       dotData: const FlDotData(show: false),
       belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.08)),
+    );
+  }
+}
+
+class _MetaDiaria extends StatelessWidget {
+  const _MetaDiaria();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer2<ConfiguracoesProvider, DashboardProvider>(
+      builder: (context, configProvider, dashboardProvider, _) {
+        final meta = configProvider.configuracoes.metaDiaria;
+        if (meta <= 0) return const SizedBox.shrink();
+
+        final receita = dashboardProvider.resumoHoje.receitaTotal;
+        final progresso = (receita / meta).clamp(0.0, 1.0);
+        final falta = (meta - receita).clamp(0, double.infinity);
+        final atingiu = receita >= meta;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Meta diária',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '${Formatters.moeda(receita)} / ${Formatters.moeda(meta)}',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: progresso,
+                  minHeight: 8,
+                  backgroundColor: AppColors.surfaceElevated,
+                  color: atingiu ? AppColors.receita : AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                atingiu
+                    ? 'Meta batida! 🎉'
+                    : 'Faltam ${Formatters.moeda(falta.toDouble())} para bater a meta',
+                style: TextStyle(
+                  color: atingiu ? AppColors.receita : AppColors.textDisabled,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

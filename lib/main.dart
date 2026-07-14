@@ -4,10 +4,13 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
+import 'data/repositories/configuracoes_repository_impl.dart';
 import 'data/repositories/despesa_repository_impl.dart';
 import 'data/repositories/receita_repository_impl.dart';
+import 'domain/repositories/configuracoes_repository.dart';
 import 'domain/repositories/despesa_repository.dart';
 import 'domain/repositories/receita_repository.dart';
+import 'presentation/providers/configuracoes_provider.dart';
 import 'presentation/providers/dashboard_provider.dart';
 import 'presentation/providers/despesa_provider.dart';
 import 'presentation/providers/indicadores_provider.dart';
@@ -33,6 +36,7 @@ class MotoGestorApp extends StatelessWidget {
       providers: [
         Provider<ReceitaRepository>(create: (_) => ReceitaRepositoryImpl()),
         Provider<DespesaRepository>(create: (_) => DespesaRepositoryImpl()),
+        Provider<ConfiguracoesRepository>(create: (_) => ConfiguracoesRepositoryImpl()),
         ChangeNotifierProvider<DashboardProvider>(
           create: (context) => DashboardProvider(
             receitaRepository: context.read<ReceitaRepository>(),
@@ -53,6 +57,11 @@ class MotoGestorApp extends StatelessWidget {
           create: (context) => IndicadoresProvider(
             receitaRepository: context.read<ReceitaRepository>(),
             despesaRepository: context.read<DespesaRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider<ConfiguracoesProvider>(
+          create: (context) => ConfiguracoesProvider(
+            repository: context.read<ConfiguracoesRepository>(),
           ),
         ),
       ],

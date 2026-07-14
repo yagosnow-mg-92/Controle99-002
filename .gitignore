@@ -1,0 +1,29 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+*.g.dart
+
+# Android (gerado automaticamente pelo CI via `flutter create`)
+android/
+!android/app/src/main/res/
+ios/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+local.properties
+key.properties
+*.jks
+*.keystore
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/

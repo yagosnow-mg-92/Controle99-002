@@ -9,6 +9,7 @@ import 'data/repositories/receita_repository_impl.dart';
 import 'domain/repositories/despesa_repository.dart';
 import 'domain/repositories/receita_repository.dart';
 import 'presentation/providers/dashboard_provider.dart';
+import 'presentation/providers/despesa_provider.dart';
 import 'presentation/providers/receita_provider.dart';
 import 'presentation/screens/home_shell.dart';
 
@@ -40,6 +41,11 @@ class MotoGestorApp extends StatelessWidget {
         ChangeNotifierProvider<ReceitaProvider>(
           create: (context) => ReceitaProvider(
             repository: context.read<ReceitaRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider<DespesaProvider>(
+          create: (context) => DespesaProvider(
+            repository: context.read<DespesaRepository>(),
           ),
         ),
       ],

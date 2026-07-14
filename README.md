@@ -10,7 +10,7 @@ e desempenho da moto — 100% offline.
 - [x] Etapa 2 — Tela **Receita** (lançamento de ganhos)
 - [x] Etapa 3 — Tela **Despesas** (lançamento livre com categorias)
 - [x] Etapa 4 — Tela **Indicadores** (filtros e métricas avançadas)
-- [ ] Etapa 5 — Gráficos avançados (pizza, comparativos, evolução)
+- [x] Etapa 5 — Gráficos avançados (evolução do lucro, histórico mensal)
 - [ ] Etapa 6 — Tela **Configurações** (moto, combustível, metas)
 - [ ] Etapa 7 — Metas, alertas e funcionalidades inteligentes
 

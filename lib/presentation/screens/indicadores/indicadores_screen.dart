@@ -62,6 +62,14 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
                 else ...[
                   _resumoPrincipal(provider.resumo),
                   const SizedBox(height: 24),
+                  const _TituloSecao('Evolução do lucro acumulado'),
+                  const SizedBox(height: 12),
+                  _graficoEvolucao(provider.serieDiaria),
+                  const SizedBox(height: 24),
+                  const _TituloSecao('Histórico mensal'),
+                  const SizedBox(height: 12),
+                  _graficoHistoricoMensal(provider.historicoMensal),
+                  const SizedBox(height: 24),
                   const _TituloSecao('Receita x Despesa'),
                   const SizedBox(height: 12),
                   _graficoBarras(provider.resumo),
@@ -155,6 +163,133 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _graficoEvolucao(List<({DateTime dia, double lucro})> serie) {
+    if (serie.isEmpty) {
+      return _placeholderGrafico('Sem dados suficientes no período');
+    }
+
+    // Transforma o lucro diário em lucro acumulado (soma progressiva) —
+    // é isso que mostra visualmente a tendência de crescimento/queda.
+    double acumulado = 0;
+    final pontos = <FlSpot>[];
+    for (int i = 0; i < serie.length; i++) {
+      acumulado += serie[i].lucro;
+      pontos.add(FlSpot(i.toDouble(), acumulado));
+    }
+
+    final valores = pontos.map((p) => p.y);
+    final minY = valores.reduce((a, b) => a < b ? a : b);
+    final maxY = valores.reduce((a, b) => a > b ? a : b);
+    final corLinha = acumulado >= 0 ? AppColors.lucro : AppColors.despesa;
+
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: LineChart(
+        LineChartData(
+          minY: minY == maxY ? minY - 10 : minY - (maxY - minY) * 0.1,
+          maxY: minY == maxY ? maxY + 10 : maxY + (maxY - minY) * 0.1,
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: const FlTitlesData(
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: pontos,
+              isCurved: true,
+              color: corLinha,
+              barWidth: 3,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: true, color: corLinha.withOpacity(0.1)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _graficoHistoricoMensal(List<({String mes, double lucro})> historico) {
+    if (historico.isEmpty) {
+      return _placeholderGrafico('Sem dados suficientes');
+    }
+
+    final maiorAbsoluto = historico
+        .map((h) => h.lucro.abs())
+        .fold<double>(0, (a, b) => a > b ? a : b);
+
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.fromLTRB(12, 20, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: BarChart(
+        BarChartData(
+          minY: maiorAbsoluto == 0 ? -10 : -maiorAbsoluto * 1.2,
+          maxY: maiorAbsoluto == 0 ? 10 : maiorAbsoluto * 1.2,
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final indice = value.toInt();
+                  if (indice < 0 || indice >= historico.length) return const SizedBox();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      historico[indice].mes,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          barGroups: [
+            for (int i = 0; i < historico.length; i++)
+              BarChartGroupData(x: i, barRods: [
+                BarChartRodData(
+                  toY: historico[i].lucro,
+                  color: historico[i].lucro >= 0 ? AppColors.lucro : AppColors.despesa,
+                  width: 22,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholderGrafico(String mensagem) {
+    return Container(
+      height: 140,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(mensagem, style: const TextStyle(color: AppColors.textSecondary)),
     );
   }
 

@@ -20,7 +20,6 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   final _valorController = TextEditingController();
   final _observacaoController = TextEditingController();
   final _kmFocusNode = FocusNode();
-  final _kmFocusNode = FocusNode();
 
   DateTime _dataSelecionada = DateTime.now();
   double _valorPorKmPreview = 0;

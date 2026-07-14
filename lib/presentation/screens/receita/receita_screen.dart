@@ -19,6 +19,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   final _kmController = TextEditingController();
   final _valorController = TextEditingController();
   final _observacaoController = TextEditingController();
+  final _kmFocusNode = FocusNode();
+  final _kmFocusNode = FocusNode();
 
   DateTime _dataSelecionada = DateTime.now();
   double _valorPorKmPreview = 0;
@@ -38,6 +40,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _kmController.dispose();
     _valorController.dispose();
     _observacaoController.dispose();
+    _kmFocusNode.dispose();
     super.dispose();
   }
 
@@ -87,10 +90,12 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _kmController.clear();
     _valorController.clear();
     _observacaoController.clear();
-    setState(() {
-      _dataSelecionada = DateTime.now();
-      _valorPorKmPreview = 0;
-    });
+    setState(() => _valorPorKmPreview = 0);
+    // A data NÃO é resetada de propósito: ao lançar vários dias
+    // retroativos seguidos, o usuário espera continuar no mesmo dia
+    // até trocar manualmente. O foco volta para o primeiro campo (Km),
+    // agilizando o próximo lançamento.
+    FocusScope.of(context).requestFocus(_kmFocusNode);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -147,6 +152,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _kmController,
+              focusNode: _kmFocusNode,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(

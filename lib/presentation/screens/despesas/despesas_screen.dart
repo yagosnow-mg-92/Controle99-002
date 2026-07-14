@@ -19,6 +19,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
   final _categoriaController = TextEditingController();
   final _valorController = TextEditingController();
   final _observacaoController = TextEditingController();
+  final _categoriaFocusNode = FocusNode();
 
   DateTime _dataSelecionada = DateTime.now();
 
@@ -35,6 +36,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
     _categoriaController.dispose();
     _valorController.dispose();
     _observacaoController.dispose();
+    _categoriaFocusNode.dispose();
     super.dispose();
   }
 
@@ -73,7 +75,10 @@ class _DespesasScreenState extends State<DespesasScreen> {
     _categoriaController.clear();
     _valorController.clear();
     _observacaoController.clear();
-    setState(() => _dataSelecionada = DateTime.now());
+    // A data NÃO é resetada de propósito (ver mesmo comentário na tela de
+    // Receita). A categoria é sempre limpa, já que cada despesa costuma
+    // ser de um tipo diferente. Foco volta para o primeiro campo.
+    FocusScope.of(context).requestFocus(_categoriaFocusNode);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -235,6 +240,8 @@ class _DespesasScreenState extends State<DespesasScreen> {
   /// atende ao requisito de "sem despesas fixas, com reaproveitamento".
   Widget _campoCategoria(DespesaProvider provider) {
     return Autocomplete<String>(
+      textEditingController: _categoriaController,
+      focusNode: _categoriaFocusNode,
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return provider.categorias;
         return provider.categorias.where(
@@ -243,9 +250,6 @@ class _DespesasScreenState extends State<DespesasScreen> {
       },
       onSelected: (selecionada) => _categoriaController.text = selecionada,
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        // Mantém os dois controllers sincronizados para que o valor
-        // selecionado/digitado seja sempre lido em `_salvar()`.
-        controller.addListener(() => _categoriaController.text = controller.text);
         return TextFormField(
           controller: controller,
           focusNode: focusNode,

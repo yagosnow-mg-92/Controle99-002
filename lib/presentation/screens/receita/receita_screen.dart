@@ -1,19 +1,328 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 
-/// Placeholder — implementado na próxima etapa do desenvolvimento.
-class ReceitaScreen extends StatelessWidget {
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formatters.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/receita_provider.dart';
+
+class ReceitaScreen extends StatefulWidget {
   const ReceitaScreen({super.key});
+
+  @override
+  State<ReceitaScreen> createState() => _ReceitaScreenState();
+}
+
+class _ReceitaScreenState extends State<ReceitaScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _kmController = TextEditingController();
+  final _valorController = TextEditingController();
+  final _observacaoController = TextEditingController();
+
+  DateTime _dataSelecionada = DateTime.now();
+  double _valorPorKmPreview = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ReceitaProvider>().carregar();
+    });
+    _kmController.addListener(_atualizarPreview);
+    _valorController.addListener(_atualizarPreview);
+  }
+
+  @override
+  void dispose() {
+    _kmController.dispose();
+    _valorController.dispose();
+    _observacaoController.dispose();
+    super.dispose();
+  }
+
+  void _atualizarPreview() {
+    final km = double.tryParse(_kmController.text.replaceAll(',', '.')) ?? 0;
+    final valor = double.tryParse(_valorController.text.replaceAll(',', '.')) ?? 0;
+    setState(() {
+      _valorPorKmPreview = km > 0 ? valor / km : 0;
+    });
+  }
+
+  Future<void> _selecionarData() async {
+    final resultado = await showDatePicker(
+      context: context,
+      initialDate: _dataSelecionada,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      locale: const Locale('pt', 'BR'),
+    );
+    if (resultado != null) {
+      setState(() => _dataSelecionada = resultado);
+    }
+  }
+
+  Future<void> _salvar() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final km = double.parse(_kmController.text.replaceAll(',', '.'));
+    final valor = double.parse(_valorController.text.replaceAll(',', '.'));
+
+    await context.read<ReceitaProvider>().salvar(
+          data: _dataSelecionada,
+          kmRodados: km,
+          valorRecebido: valor,
+          observacao: _observacaoController.text,
+        );
+
+    // Mantém os providers em sincronia: assim que uma receita é salva,
+    // o Dashboard recalcula seus indicadores automaticamente.
+    if (mounted) {
+      await context.read<DashboardProvider>().carregar();
+    }
+
+    if (!mounted) return;
+
+    _kmController.clear();
+    _valorController.clear();
+    _observacaoController.clear();
+    setState(() {
+      _dataSelecionada = DateTime.now();
+      _valorPorKmPreview = 0;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Receita lançada com sucesso'),
+        backgroundColor: AppColors.receita,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Receita')),
-      body: const Center(
-        child: Text(
-          'Tela de Receita — em construção',
+      appBar: AppBar(title: const Text('Lançar receita')),
+      body: SafeArea(
+        child: Consumer<ReceitaProvider>(
+          builder: (context, provider, _) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                _formulario(provider),
+                const SizedBox(height: 28),
+                const Text(
+                  'Lançamentos recentes',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _listaLancamentos(provider),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _formulario(ReceitaProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _campoData(),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _kmController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Quilômetros rodados',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+                suffixText: 'km',
+              ),
+              validator: (valor) {
+                final numero = double.tryParse((valor ?? '').replaceAll(',', '.'));
+                if (numero == null || numero <= 0) return 'Informe um valor de km válido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _valorController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Valor recebido',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+                prefixText: 'R\$ ',
+              ),
+              validator: (valor) {
+                final numero = double.tryParse((valor ?? '').replaceAll(',', '.'));
+                if (numero == null || numero <= 0) return 'Informe um valor recebido válido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _observacaoController,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Observação (opcional)',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _previewValorPorKm(),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: provider.salvando ? null : _salvar,
+                child: provider.salvando
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Salvar receita'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _campoData() {
+    return InkWell(
+      onTap: _selecionarData,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 12),
+            Text(
+              Formatters.data(_dataSelecionada),
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _previewValorPorKm() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.receitaSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Valor por Km',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          Text(
+            Formatters.moeda(_valorPorKmPreview),
+            style: const TextStyle(
+              color: AppColors.receita,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listaLancamentos(ReceitaProvider provider) {
+    if (provider.carregando) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (provider.lancamentos.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Text(
+          'Nenhuma receita lançada ainda',
           style: TextStyle(color: AppColors.textSecondary),
         ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: provider.lancamentos.map((r) {
+          return Dismissible(
+            key: ValueKey(r.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              decoration: BoxDecoration(
+                color: AppColors.despesa.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: AppColors.despesa),
+            ),
+            onDismissed: (_) async {
+              await context.read<ReceitaProvider>().excluir(r.id);
+              if (context.mounted) {
+                await context.read<DashboardProvider>().carregar();
+              }
+            },
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: AppColors.receitaSoft,
+                child: Icon(Icons.arrow_upward_rounded, color: AppColors.receita, size: 18),
+              ),
+              title: Text(
+                Formatters.moeda(r.valorRecebido),
+                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                '${Formatters.data(r.data)} · ${Formatters.km(r.kmRodados)} · ${Formatters.moeda(r.valorPorKm)}/km',
+                style: const TextStyle(color: AppColors.textDisabled, fontSize: 12),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

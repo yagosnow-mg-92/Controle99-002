@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +9,7 @@ import 'data/repositories/receita_repository_impl.dart';
 import 'domain/repositories/despesa_repository.dart';
 import 'domain/repositories/receita_repository.dart';
 import 'presentation/providers/dashboard_provider.dart';
+import 'presentation/providers/receita_provider.dart';
 import 'presentation/screens/home_shell.dart';
 
 Future<void> main() async {
@@ -35,6 +37,11 @@ class MotoGestorApp extends StatelessWidget {
             despesaRepository: context.read<DespesaRepository>(),
           ),
         ),
+        ChangeNotifierProvider<ReceitaProvider>(
+          create: (context) => ReceitaProvider(
+            repository: context.read<ReceitaRepository>(),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Moto Gestor',
@@ -42,6 +49,13 @@ class MotoGestorApp extends StatelessWidget {
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
+        locale: const Locale('pt', 'BR'),
+        supportedLocales: const [Locale('pt', 'BR')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         home: const HomeShell(),
       ),
     );

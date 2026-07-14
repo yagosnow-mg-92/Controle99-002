@@ -14,6 +14,10 @@ class ResumoPeriodo {
   final DateTime? piorDia;
   final Map<String, double> despesasPorCategoria;
 
+  /// Quantidade de dias cobertos pelo período filtrado — usada para
+  /// calcular as médias diária/semanal/mensal.
+  final int numeroDias;
+
   const ResumoPeriodo({
     this.receitaTotal = 0,
     this.despesaTotal = 0,
@@ -26,6 +30,7 @@ class ResumoPeriodo {
     this.melhorDia,
     this.piorDia,
     this.despesasPorCategoria = const {},
+    this.numeroDias = 1,
   });
 
   double get receitaPorKm => kmRodados > 0 ? receitaTotal / kmRodados : 0;
@@ -35,4 +40,11 @@ class ResumoPeriodo {
       receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
   double get percentualDespesa =>
       receitaTotal > 0 ? (despesaTotal / receitaTotal) * 100 : 0;
+
+  double get _dias => numeroDias > 0 ? numeroDias.toDouble() : 1;
+
+  double get mediaDiariaReceita => receitaTotal / _dias;
+  double get mediaDiariaLucro => lucroLiquido / _dias;
+  double get mediaSemanalLucro => mediaDiariaLucro * 7;
+  double get mediaMensalLucro => mediaDiariaLucro * 30;
 }

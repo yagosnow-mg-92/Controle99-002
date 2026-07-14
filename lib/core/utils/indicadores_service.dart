@@ -11,6 +11,8 @@ class IndicadoresService {
   ResumoPeriodo calcular({
     required List<Receita> receitas,
     required List<Despesa> despesas,
+    DateTime? inicio,
+    DateTime? fim,
   }) {
     final receitaTotal = receitas.fold<double>(0, (s, r) => s + r.valorRecebido);
     final despesaTotal = despesas.fold<double>(0, (s, d) => s + d.valor);
@@ -38,6 +40,10 @@ class IndicadoresService {
         ? 0.0
         : despesas.map((d) => d.valor).reduce((a, b) => a > b ? a : b);
 
+    final numeroDias = (inicio != null && fim != null)
+        ? fim.difference(inicio).inDays.clamp(1, 100000)
+        : 1;
+
     return ResumoPeriodo(
       receitaTotal: receitaTotal,
       despesaTotal: despesaTotal,
@@ -50,6 +56,7 @@ class IndicadoresService {
       melhorDia: melhor?.key,
       piorDia: pior?.key,
       despesasPorCategoria: despesasPorCategoria,
+      numeroDias: numeroDias,
     );
   }
 

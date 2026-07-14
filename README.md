@@ -1,0 +1,97 @@
+# Moto Gestor 🏍️
+
+Painel financeiro completo para motociclistas de aplicativos de entrega e
+transporte (99, Uber, iFood etc.). Controla ganhos, despesas, indicadores
+e desempenho da moto — 100% offline.
+
+## Status do desenvolvimento
+
+- [x] Etapa 1 — Arquitetura, tema, banco de dados, tela **Dashboard**, CI/CD
+- [ ] Etapa 2 — Tela **Receita** (lançamento de ganhos)
+- [ ] Etapa 3 — Tela **Despesas** (lançamento livre com categorias)
+- [ ] Etapa 4 — Tela **Indicadores** (filtros e métricas avançadas)
+- [ ] Etapa 5 — Gráficos avançados (pizza, comparativos, evolução)
+- [ ] Etapa 6 — Tela **Configurações** (moto, combustível, metas)
+- [ ] Etapa 7 — Metas, alertas e funcionalidades inteligentes
+
+## Tecnologia
+
+- **Flutter** (Dart) — melhor opção para performance nativa, banco local
+  robusto (`sqflite`) e build headless simples via GitHub Actions.
+- **SQLite** local via `sqflite` — 100% offline, arquitetura pronta para
+  sincronização em nuvem futura (basta trocar a implementação do
+  repositório, que fica isolada atrás de interfaces em `domain/repositories`).
+- **Provider** para gerenciamento de estado (simples, testável, sem boilerplate).
+- **fl_chart** para os gráficos do dashboard e indicadores.
+
+## Arquitetura
+
+Clean Architecture em 3 camadas:
+
+```
+lib/
+├── core/            # tema, banco, utils, formatação — sem dependência de domínio
+├── domain/          # entidades e contratos (repositories) — regra de negócio pura
+├── data/            # implementação dos repositórios (SQLite)
+└── presentation/    # telas, widgets, providers (estado)
+```
+
+A UI e o `data` dependem de `domain`, nunca o contrário. Isso permite trocar
+o banco local por uma API remota no futuro sem alterar telas ou lógica de
+negócio.
+
+## Como o APK é gerado (sem instalar nada no seu PC)
+
+Você **não precisa instalar Flutter, Android Studio, Java ou SDK**. Tudo
+acontece no GitHub:
+
+1. Faça push para a branch `main` → o workflow builda o APK e disponibiliza
+   como **artefato do build** (aba *Actions* → clique no run → seção
+   *Artifacts*).
+2. Crie uma tag de versão (`git tag v1.0.0 && git push origin v1.0.0`) →
+   o workflow além de buildar, cria automaticamente uma **Release** no
+   GitHub com o APK anexado, pronto para download direto.
+
+O workflow (`.github/workflows/build-apk.yml`) faz o seguinte:
+1. Instala Java 17 e Flutter (versão fixada em `3.24.5`).
+2. Roda `flutter create --platforms=android .` — isso gera a pasta
+   `android/` automaticamente e sempre compatível com a versão do Flutter
+   usada no CI (por isso ela **não é versionada no Git**, veja `.gitignore`).
+3. Roda `flutter pub get`, `flutter analyze` e `flutter build apk --release`.
+4. Publica o(s) `.apk` gerado(s).
+
+### Como instalar o APK no celular
+
+1. Baixe o `.apk` da aba *Actions* (artefato) ou da aba *Releases*.
+2. Transfira para o celular Android.
+3. Habilite "Instalar de fontes desconhecidas" nas configurações do Android.
+4. Abra o arquivo `.apk` e instale.
+
+## Rodando localmente (opcional, só se você quiser)
+
+Não é necessário para o fluxo pedido, mas se um dia quiser rodar localmente:
+
+```bash
+flutter create --platforms=android,ios .
+flutter pub get
+flutter run
+```
+
+## Design
+
+- Tema escuro premium (Material 3), tipografia Inter (Google Fonts).
+- Verde para receitas, vermelho para despesas, azul para lucro — leitura
+  instantânea dos números.
+- Cards com bordas suaves, gráficos com curvas suavizadas (`fl_chart`).
+
+## Banco de dados (schema atual)
+
+- `receitas(id, data, km_rodados, valor_recebido, valor_por_km, observacao, criado_em)`
+- `despesas(id, data, categoria, valor, observacao, criado_em)`
+- `categorias_despesa(nome)` — categorias reutilizáveis, extensíveis pelo usuário
+- `configuracoes(chave, valor)` — moto, combustível, metas (usada a partir da Etapa 6)
+
+---
+
+Próxima etapa: implementação da tela **Receita**, com formulário de
+lançamento e cálculo automático de valor por Km.

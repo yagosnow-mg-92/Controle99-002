@@ -41,6 +41,21 @@ jobs:
             flutter create --platforms=android --org com.motogestor.app --project-name moto_gestor .
           fi
 
+      - name: Configurar assinatura de release
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=release.keystore
+          EOF
+          # Injeta a leitura do key.properties e a signingConfig de release
+          # no build.gradle gerado pelo `flutter create`, garantindo que
+          # toda build use a MESMA assinatura — isso é o que permite
+          # atualizar o app sem precisar desinstalar.
+          python3 scripts/configurar_assinatura.py
+
       - name: Instalar dependências
         run: flutter pub get
 

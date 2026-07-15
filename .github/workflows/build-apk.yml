@@ -100,6 +100,29 @@ jobs:
       - name: Build APK universal (fallback)
         run: flutter build apk --release --build-number=${{ github.run_number }}
 
+      - name: Verificar assinatura do APK final gerado
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          echo "--- Certificado embutido no APK final ($APK) ---"
+          keytool -printcert -jarfile "$APK" | tee /tmp/cert_apk.txt
+
+          echo ""
+          echo "--- Comparando com o certificado da keystore usada ---"
+          keytool -list -v -keystore android/app/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" | tee /tmp/cert_keystore.txt
+
+          SHA_APK=$(grep "SHA256:" /tmp/cert_apk.txt | head -1 | tr -d ' ')
+          SHA_KEYSTORE=$(grep "SHA256:" /tmp/cert_keystore.txt | head -1 | tr -d ' ')
+
+          if [ "$SHA_APK" != "$SHA_KEYSTORE" ]; then
+            echo "ERRO CRÍTICO: o APK final NÃO foi assinado com a keystore configurada!"
+            echo "APK:      $SHA_APK"
+            echo "Keystore: $SHA_KEYSTORE"
+            exit 1
+          fi
+          echo ""
+          echo "CONFIRMADO: o APK final está assinado com a keystore correta."
+
       - name: Upload do APK como artefato do build
         uses: actions/upload-artifact@v4
         with:

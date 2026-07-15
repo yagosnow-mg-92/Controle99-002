@@ -76,7 +76,7 @@ jobs:
             }
 
           echo "--- Verificando build.gradle ---"
-          if ! grep -q "signingConfig signingConfigs.release" android/app/build.gradle; then
+          if ! grep -qE "signingConfig\s*=?\s*signingConfigs\.release" android/app/build.gradle; then
             echo "ERRO: build.gradle NÃO está apontando para a signingConfig de release."
             echo "O script configurar_assinatura.py não conseguiu aplicar a alteração."
             echo "----- build.gradle atual -----"

@@ -56,6 +56,35 @@ jobs:
           # atualizar o app sem precisar desinstalar.
           python3 scripts/configurar_assinatura.py
 
+      - name: Verificar assinatura configurada (falha o build se não bateu)
+        run: |
+          echo "--- Verificando keystore ---"
+          KEYSTORE_SIZE=$(stat -c%s android/app/release.keystore 2>/dev/null || echo 0)
+          if [ "$KEYSTORE_SIZE" -lt 100 ]; then
+            echo "ERRO: android/app/release.keystore está vazio ou não foi criado (tamanho: $KEYSTORE_SIZE bytes)."
+            echo "Isso normalmente significa que o secret ANDROID_KEYSTORE_BASE64 está vazio, incompleto ou ausente."
+            exit 1
+          fi
+          echo "Keystore OK ($KEYSTORE_SIZE bytes)."
+
+          echo "--- Fingerprint da assinatura desta build ---"
+          echo "(compare esse valor entre builds diferentes — tem que ser SEMPRE IGUAL)"
+          keytool -list -v -keystore android/app/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>&1 | grep "SHA256:" || {
+              echo "ERRO: não foi possível ler a keystore com a senha informada (ANDROID_KEYSTORE_PASSWORD)."
+              exit 1
+            }
+
+          echo "--- Verificando build.gradle ---"
+          if ! grep -q "signingConfig signingConfigs.release" android/app/build.gradle; then
+            echo "ERRO: build.gradle NÃO está apontando para a signingConfig de release."
+            echo "O script configurar_assinatura.py não conseguiu aplicar a alteração."
+            echo "----- build.gradle atual -----"
+            cat android/app/build.gradle
+            exit 1
+          fi
+          echo "build.gradle OK: usando signingConfigs.release."
+
       - name: Instalar dependências
         run: flutter pub get
 

@@ -38,6 +38,7 @@ funcionar direto por cima, sem perder dados nunca mais.
 
 ---
 
+## Status do desenvolvimento
 
 - [x] Etapa 1 — Arquitetura, tema, banco de dados, tela **Dashboard**, CI/CD
 - [x] Etapa 2 — Tela **Receita** (lançamento de ganhos)
@@ -45,7 +46,7 @@ funcionar direto por cima, sem perder dados nunca mais.
 - [x] Etapa 4 — Tela **Indicadores** (filtros e métricas avançadas)
 - [x] Etapa 5 — Gráficos avançados (evolução do lucro, histórico mensal)
 - [x] Etapa 6 — Tela **Configurações** (moto, combustível, metas)
-- [ ] Etapa 7 — Metas, alertas e funcionalidades inteligentes
+- [x] Etapa 7 — Metas, alertas e funcionalidades inteligentes
 
 ## Tecnologia
 

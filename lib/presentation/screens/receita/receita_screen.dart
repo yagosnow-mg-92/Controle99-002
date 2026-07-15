@@ -23,6 +23,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
 
   DateTime _dataSelecionada = DateTime.now();
   double _valorPorKmPreview = 0;
+  String _buscaTexto = '';
 
   @override
   void initState() {
@@ -124,6 +125,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 12),
+                _campoBusca(),
                 const SizedBox(height: 12),
                 _listaLancamentos(provider),
               ],
@@ -293,6 +296,18 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     return confirmado ?? false;
   }
 
+  Widget _campoBusca() {
+    return TextField(
+      onChanged: (texto) => setState(() => _buscaTexto = texto),
+      style: const TextStyle(color: AppColors.textPrimary),
+      decoration: const InputDecoration(
+        hintText: 'Buscar por valor, km ou observação...',
+        hintStyle: TextStyle(color: AppColors.textDisabled),
+        prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+      ),
+    );
+  }
+
   Widget _listaLancamentos(ReceitaProvider provider) {
     if (provider.carregando) {
       return const Padding(
@@ -301,7 +316,16 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
       );
     }
 
-    if (provider.lancamentos.isEmpty) {
+    final busca = _buscaTexto.trim().toLowerCase();
+    final lancamentosFiltrados = busca.isEmpty
+        ? provider.lancamentos
+        : provider.lancamentos.where((r) {
+            return r.valorRecebido.toString().contains(busca) ||
+                r.kmRodados.toString().contains(busca) ||
+                (r.observacao ?? '').toLowerCase().contains(busca);
+          }).toList();
+
+    if (lancamentosFiltrados.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
@@ -310,9 +334,9 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border),
         ),
-        child: const Text(
-          'Nenhuma receita lançada ainda',
-          style: TextStyle(color: AppColors.textSecondary),
+        child: Text(
+          busca.isEmpty ? 'Nenhuma receita lançada ainda' : 'Nenhum resultado para "$_buscaTexto"',
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
       );
     }
@@ -324,7 +348,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
-        children: provider.lancamentos.map((r) {
+        children: lancamentosFiltrados.map((r) {
           return Dismissible(
             key: ValueKey(r.id),
             direction: DismissDirection.endToStart,

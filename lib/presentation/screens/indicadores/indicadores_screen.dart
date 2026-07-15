@@ -61,6 +61,9 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
                   )
                 else ...[
                   _resumoPrincipal(provider.resumo),
+                  const SizedBox(height: 12),
+                  if (provider.resumoAnterior != null)
+                    _comparativoPeriodoAnterior(provider.resumo, provider.resumoAnterior!),
                   const SizedBox(height: 24),
                   const _TituloSecao('Evolução do lucro acumulado'),
                   const SizedBox(height: 12),
@@ -159,6 +162,45 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
               color: AppColors.lucro,
               fontSize: 13,
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparativoPeriodoAnterior(ResumoPeriodo atual, ResumoPeriodo anterior) {
+    double variacao(double valorAtual, double valorAnterior) {
+      if (valorAnterior == 0) return valorAtual == 0 ? 0 : 100;
+      return ((valorAtual - valorAnterior) / valorAnterior.abs()) * 100;
+    }
+
+    final variacaoLucro = variacao(atual.lucroLiquido, anterior.lucroLiquido);
+    final subiu = variacaoLucro >= 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: (subiu ? AppColors.receita : AppColors.despesa).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            subiu ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            color: subiu ? AppColors.receita : AppColors.despesa,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${variacaoLucro.abs().toStringAsFixed(0)}% ${subiu ? 'a mais' : 'a menos'} de lucro '
+              'que o período anterior',
+              style: TextStyle(
+                color: subiu ? AppColors.receita : AppColors.despesa,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -574,6 +616,13 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
         icone: Icons.calendar_month_rounded,
         cor: AppColors.lucro,
         fundo: AppColors.lucroSoft,
+      ),
+      (
+        titulo: 'Sequência de dias lucrativos',
+        valor: '${resumo.maiorSequenciaLucrativa} dias',
+        icone: Icons.local_fire_department_rounded,
+        cor: AppColors.alerta,
+        fundo: AppColors.surfaceElevated,
       ),
     ];
 

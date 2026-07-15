@@ -18,6 +18,10 @@ class ResumoPeriodo {
   /// calcular as médias diária/semanal/mensal.
   final int numeroDias;
 
+  /// Quantidade de dias consecutivos (calendário) com lucro positivo
+  /// dentro do período — "melhor sequência de dias lucrativos".
+  final int maiorSequenciaLucrativa;
+
   const ResumoPeriodo({
     this.receitaTotal = 0,
     this.despesaTotal = 0,
@@ -31,6 +35,7 @@ class ResumoPeriodo {
     this.piorDia,
     this.despesasPorCategoria = const {},
     this.numeroDias = 1,
+    this.maiorSequenciaLucrativa = 0,
   });
 
   double get receitaPorKm => kmRodados > 0 ? receitaTotal / kmRodados : 0;

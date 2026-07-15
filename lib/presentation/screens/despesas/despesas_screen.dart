@@ -22,6 +22,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
   final _categoriaFocusNode = FocusNode();
 
   DateTime _dataSelecionada = DateTime.now();
+  String _buscaTexto = '';
 
   @override
   void initState() {
@@ -58,10 +59,17 @@ class _DespesasScreenState extends State<DespesasScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final valor = double.parse(_valorController.text.replaceAll(',', '.'));
+    final categoria = _categoriaController.text.trim();
+
+    final media = context.read<DespesaProvider>().mediaCategoria(categoria);
+    if (media != null && valor > media * 1.5) {
+      final continuar = await _confirmarDespesaElevada(valor: valor, media: media, categoria: categoria);
+      if (!continuar) return;
+    }
 
     await context.read<DespesaProvider>().salvar(
           data: _dataSelecionada,
-          categoria: _categoriaController.text,
+          categoria: categoria,
           valor: valor,
           observacao: _observacaoController.text,
         );
@@ -86,6 +94,45 @@ class _DespesasScreenState extends State<DespesasScreen> {
         backgroundColor: AppColors.despesa,
       ),
     );
+  }
+
+  Future<bool> _confirmarDespesaElevada({
+    required double valor,
+    required double media,
+    required String categoria,
+  }) async {
+    final percentualAcima = ((valor / media) - 1) * 100;
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.alerta),
+            SizedBox(width: 10),
+            Text('Despesa acima do normal', style: TextStyle(color: AppColors.textPrimary)),
+          ],
+        ),
+        content: Text(
+          'Essa despesa de ${Formatters.moeda(valor)} em "$categoria" está '
+          '${percentualAcima.toStringAsFixed(0)}% acima da sua média nessa '
+          'categoria (${Formatters.moeda(media)}). Quer salvar mesmo assim?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Revisar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Salvar mesmo assim', style: TextStyle(color: AppColors.alerta)),
+          ),
+        ],
+      ),
+    );
+    return confirmado ?? false;
   }
 
   Future<bool> _confirmarExclusao(Despesa despesa) async {
@@ -138,6 +185,8 @@ class _DespesasScreenState extends State<DespesasScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 12),
+                _campoBusca(),
                 const SizedBox(height: 12),
                 _listaLancamentos(provider),
               ],
@@ -294,6 +343,18 @@ class _DespesasScreenState extends State<DespesasScreen> {
     );
   }
 
+  Widget _campoBusca() {
+    return TextField(
+      onChanged: (texto) => setState(() => _buscaTexto = texto),
+      style: const TextStyle(color: AppColors.textPrimary),
+      decoration: const InputDecoration(
+        hintText: 'Buscar por categoria, valor ou observação...',
+        hintStyle: TextStyle(color: AppColors.textDisabled),
+        prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+      ),
+    );
+  }
+
   Widget _listaLancamentos(DespesaProvider provider) {
     if (provider.carregando) {
       return const Padding(
@@ -302,7 +363,16 @@ class _DespesasScreenState extends State<DespesasScreen> {
       );
     }
 
-    if (provider.lancamentos.isEmpty) {
+    final busca = _buscaTexto.trim().toLowerCase();
+    final lancamentosFiltrados = busca.isEmpty
+        ? provider.lancamentos
+        : provider.lancamentos.where((d) {
+            return d.categoria.toLowerCase().contains(busca) ||
+                d.valor.toString().contains(busca) ||
+                (d.observacao ?? '').toLowerCase().contains(busca);
+          }).toList();
+
+    if (lancamentosFiltrados.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
@@ -311,9 +381,9 @@ class _DespesasScreenState extends State<DespesasScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border),
         ),
-        child: const Text(
-          'Nenhuma despesa lançada ainda',
-          style: TextStyle(color: AppColors.textSecondary),
+        child: Text(
+          busca.isEmpty ? 'Nenhuma despesa lançada ainda' : 'Nenhum resultado para "$_buscaTexto"',
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
       );
     }
@@ -325,7 +395,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
-        children: provider.lancamentos.map((d) {
+        children: lancamentosFiltrados.map((d) {
           return Dismissible(
             key: ValueKey(d.id),
             direction: DismissDirection.endToStart,

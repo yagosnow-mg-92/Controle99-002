@@ -55,4 +55,16 @@ class DespesaProvider extends ChangeNotifier {
     await _repository.excluir(id);
     await carregar();
   }
+
+  /// Média histórica de despesas de uma categoria específica, usada para
+  /// alertar o usuário quando um novo lançamento foge muito do padrão.
+  /// Retorna null se não houver lançamentos suficientes para comparar.
+  double? mediaCategoria(String categoria) {
+    final daCategoria = lancamentos.where(
+      (d) => d.categoria.toLowerCase() == categoria.trim().toLowerCase(),
+    );
+    if (daCategoria.length < 2) return null;
+    final total = daCategoria.fold<double>(0, (s, d) => s + d.valor);
+    return total / daCategoria.length;
+  }
 }

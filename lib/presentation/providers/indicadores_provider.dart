@@ -27,6 +27,7 @@ class IndicadoresProvider extends ChangeNotifier {
   DateTime periodoPersonalizadoFim = DateTime.now();
 
   ResumoPeriodo resumo = const ResumoPeriodo();
+  ResumoPeriodo? resumoAnterior;
 
   /// Lucro dia a dia dentro do período filtrado — usado no gráfico de
   /// evolução (lucro acumulado).
@@ -72,11 +73,32 @@ class IndicadoresProvider extends ChangeNotifier {
       fim: intervalo.fim,
     );
 
+    resumoAnterior = await _calcularResumoAnterior(intervalo.inicio, intervalo.fim);
     serieDiaria = await _calcularSerieDiaria(intervalo.inicio, intervalo.fim);
     historicoMensal = await _calcularHistoricoMensal();
 
     carregando = false;
     notifyListeners();
+  }
+
+  /// Compara sempre com o período imediatamente anterior de mesma
+  /// duração — ex: se o filtro é "Semana", compara com a semana anterior;
+  /// se é "Mês", com o mês anterior; período personalizado de 10 dias
+  /// compara com os 10 dias anteriores a ele.
+  Future<ResumoPeriodo> _calcularResumoAnterior(DateTime inicio, DateTime fim) async {
+    final duracao = fim.difference(inicio);
+    final inicioAnterior = inicio.subtract(duracao);
+    final fimAnterior = inicio;
+
+    final receitas = await _receitaRepository.listar(inicio: inicioAnterior, fim: fimAnterior);
+    final despesas = await _despesaRepository.listar(inicio: inicioAnterior, fim: fimAnterior);
+
+    return _indicadoresService.calcular(
+      receitas: receitas,
+      despesas: despesas,
+      inicio: inicioAnterior,
+      fim: fimAnterior,
+    );
   }
 
   /// Calcula o lucro de cada dia do período, limitando a 60 pontos para

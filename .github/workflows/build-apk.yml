@@ -88,6 +88,11 @@ jobs:
           echo "--- Código de versão desta build ---"
           echo "versionCode = ${{ github.run_number }} (sempre crescente, evita o erro de 'conflito' em reinstalações)"
 
+          echo ""
+          echo "===== CONTEÚDO COMPLETO DE android/app/build.gradle ====="
+          cat android/app/build.gradle
+          echo "===== FIM DO ARQUIVO ====="
+
       - name: Instalar dependências
         run: flutter pub get
 

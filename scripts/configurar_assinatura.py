@@ -9,6 +9,7 @@ Roda apenas dentro do GitHub Actions, depois de `flutter create`.
 """
 
 import pathlib
+import re
 import sys
 
 BUILD_GRADLE = pathlib.Path("android/app/build.gradle")
@@ -31,6 +32,14 @@ SIGNING_CONFIGS_BLOCK = """
         }
     }
 """
+
+# Casa tanto "signingConfig signingConfigs.debug" (sintaxe antiga do Groovy)
+# quanto "signingConfig = signingConfigs.debug" (sintaxe nova, com "=",
+# usada pelos templates mais recentes do Flutter). É essa variação que
+# causava o bug: o script antigo só reconhecia a forma sem "=", então
+# inseria uma linha NOVA em vez de substituir a original — e a original
+# (por vir depois) sempre vencia, mantendo a assinatura de debug.
+PADRAO_SIGNING_DEBUG = re.compile(r"signingConfig\s*=?\s*signingConfigs\.debug")
 
 
 def main() -> None:
@@ -63,20 +72,22 @@ def main() -> None:
         1,
     )
 
-    # 3) Aponta o buildType de release para a signingConfig de release
-    if "signingConfig signingConfigs.debug" in conteudo:
-        conteudo = conteudo.replace(
-            "signingConfig signingConfigs.debug",
-            "signingConfig signingConfigs.release",
+    # 3) SUBSTITUI (nunca duplica) a linha que aponta para a debug key,
+    # seja qual for a sintaxe usada pelo template do Flutter.
+    conteudo, quantidade = PADRAO_SIGNING_DEBUG.subn(
+        "signingConfig = signingConfigs.release",
+        conteudo,
+        count=1,
+    )
+
+    if quantidade == 0:
+        print(
+            "ERRO: não encontrei a linha 'signingConfig ... signingConfigs.debug' "
+            "para substituir. O template do build.gradle mudou de novo — "
+            "avise para ajustar o script.",
+            file=sys.stderr,
         )
-    else:
-        # Fallback: garante que exista uma signingConfig explícita mesmo
-        # que o template padrão não tenha a linha esperada.
-        conteudo = conteudo.replace(
-            "buildTypes {\n        release {",
-            "buildTypes {\n        release {\n            signingConfig signingConfigs.release",
-            1,
-        )
+        sys.exit(1)
 
     BUILD_GRADLE.write_text(conteudo, encoding="utf-8")
     print("Assinatura de release configurada com sucesso em build.gradle.")

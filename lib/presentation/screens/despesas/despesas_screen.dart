@@ -108,10 +108,16 @@ class _DespesasScreenState extends State<DespesasScreen> {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.alerta),
             SizedBox(width: 10),
-            Text('Despesa acima do normal', style: TextStyle(color: AppColors.textPrimary)),
+            Expanded(
+              child: Text(
+                'Despesa acima do normal',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
+              ),
+            ),
           ],
         ),
         content: Text(

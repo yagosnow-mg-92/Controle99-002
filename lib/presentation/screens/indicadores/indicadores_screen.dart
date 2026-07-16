@@ -223,43 +223,130 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
     }
 
     final valores = pontos.map((p) => p.y);
-    final minY = valores.reduce((a, b) => a < b ? a : b);
-    final maxY = valores.reduce((a, b) => a > b ? a : b);
+    final minValor = valores.reduce((a, b) => a < b ? a : b);
+    final maxValor = valores.reduce((a, b) => a > b ? a : b);
     final corLinha = acumulado >= 0 ? AppColors.lucro : AppColors.despesa;
 
+    final minY = minValor == maxValor ? minValor - 10 : minValor - (maxValor - minValor) * 0.15;
+    final maxY = minValor == maxValor ? maxValor + 10 : maxValor + (maxValor - minValor) * 0.15;
+    final intervaloEixoY = ((maxY - minY) / 4).clamp(1, double.infinity).toDouble();
+
+    // Evita rótulos amontoados no eixo horizontal quando o período tem
+    // muitos pontos (ex: Ano inteiro) — mostra no máximo ~6 datas.
+    final passoRotulo = (serie.length / 6).ceil().clamp(1, serie.length);
+
     return Container(
-      height: 200,
-      padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: LineChart(
-        LineChartData(
-          minY: minY == maxY ? minY - 10 : minY - (maxY - minY) * 0.1,
-          maxY: minY == maxY ? maxY + 10 : maxY + (maxY - minY) * 0.1,
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: const FlTitlesData(
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _ItemLegendaIndicadores(cor: corLinha, texto: 'Lucro acumulado'),
+              Text(
+                Formatters.moeda(acumulado),
+                style: TextStyle(color: corLinha, fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ],
           ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: pontos,
-              isCurved: true,
-              color: corLinha,
-              barWidth: 3,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: true, color: corLinha.withOpacity(0.1)),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                minY: minY,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: intervaloEixoY,
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: AppColors.border, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.surfaceElevated,
+                    getTooltipItems: (spots) => spots.map((spot) {
+                      return LineTooltipItem(
+                        Formatters.moeda(spot.y),
+                        TextStyle(color: corLinha, fontWeight: FontWeight.w700, fontSize: 12),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: intervaloEixoY,
+                      getTitlesWidget: (value, meta) => Text(
+                        _valorCompactoIndicadores(value),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      interval: passoRotulo.toDouble(),
+                      getTitlesWidget: (value, meta) {
+                        final indice = value.toInt();
+                        if (indice < 0 || indice >= serie.length) return const SizedBox();
+                        if (indice % passoRotulo != 0) return const SizedBox();
+                        final dia = serie[indice].dia;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '${dia.day.toString().padLeft(2, '0')}/${dia.month.toString().padLeft(2, '0')}',
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: pontos,
+                    isCurved: false,
+                    color: corLinha,
+                    barWidth: 2.5,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                        radius: serie.length > 30 ? 0 : 3.5,
+                        color: corLinha,
+                        strokeWidth: 2,
+                        strokeColor: AppColors.surface,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(show: true, color: corLinha.withOpacity(0.08)),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  String _valorCompactoIndicadores(double valor) {
+    if (valor.abs() >= 1000) {
+      return '${(valor / 1000).toStringAsFixed(1)}k';
+    }
+    return valor.toStringAsFixed(0);
   }
 
   Widget _graficoHistoricoMensal(List<({String mes, double lucro})> historico) {
@@ -267,56 +354,84 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
       return _placeholderGrafico('Sem dados suficientes');
     }
 
-    final maiorAbsoluto = historico
-        .map((h) => h.lucro.abs())
-        .fold<double>(0, (a, b) => a > b ? a : b);
+    final maiorValor = historico.map((h) => h.lucro).fold<double>(0, (a, b) => a > b ? a : b);
+    final menorValor = historico.map((h) => h.lucro).fold<double>(0, (a, b) => a < b ? a : b);
+
+    // Diferente de antes: o eixo só desce abaixo de zero se houver algum
+    // mês com prejuízo de verdade. Isso elimina o espaço vazio enorme
+    // entre a barra e o rótulo do mês quando todos os valores são positivos.
+    final minY = menorValor < 0 ? menorValor * 1.35 : 0.0;
+    final maxY = maiorValor > 0 ? maiorValor * 1.35 : 10.0;
 
     return Container(
-      height: 200,
-      padding: const EdgeInsets.fromLTRB(12, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: BarChart(
-        BarChartData(
-          minY: maiorAbsoluto == 0 ? -10 : -maiorAbsoluto * 1.2,
-          maxY: maiorAbsoluto == 0 ? 10 : maiorAbsoluto * 1.2,
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final indice = value.toInt();
-                  if (indice < 0 || indice >= historico.length) return const SizedBox();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      historico[indice].mes,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                    ),
-                  );
-                },
+      child: SizedBox(
+        height: 200,
+        child: BarChart(
+          BarChartData(
+            minY: minY,
+            maxY: maxY,
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+            barTouchData: BarTouchData(
+              enabled: false,
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => Colors.transparent,
+                tooltipPadding: EdgeInsets.zero,
+                tooltipMargin: 4,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                  _valorCompactoIndicadores(rod.toY),
+                  TextStyle(
+                    color: rod.toY >= 0 ? AppColors.lucro : AppColors.despesa,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
               ),
             ),
-          ),
-          barGroups: [
-            for (int i = 0; i < historico.length; i++)
-              BarChartGroupData(x: i, barRods: [
-                BarChartRodData(
-                  toY: historico[i].lucro,
-                  color: historico[i].lucro >= 0 ? AppColors.lucro : AppColors.despesa,
-                  width: 22,
-                  borderRadius: BorderRadius.circular(6),
+            titlesData: FlTitlesData(
+              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 22,
+                  getTitlesWidget: (value, meta) {
+                    final indice = value.toInt();
+                    if (indice < 0 || indice >= historico.length) return const SizedBox();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        historico[indice].mes,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      ),
+                    );
+                  },
                 ),
-              ]),
-          ],
+              ),
+            ),
+            barGroups: [
+              for (int i = 0; i < historico.length; i++)
+                BarChartGroupData(
+                  x: i,
+                  showingTooltipIndicators: const [0],
+                  barRods: [
+                    BarChartRodData(
+                      toY: historico[i].lucro,
+                      color: historico[i].lucro >= 0 ? AppColors.lucro : AppColors.despesa,
+                      width: 22,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -339,56 +454,79 @@ class _IndicadoresScreenState extends State<IndicadoresScreen> {
     final maxY = [resumo.receitaTotal, resumo.despesaTotal].reduce((a, b) => a > b ? a : b);
 
     return Container(
-      height: 200,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: BarChart(
-        BarChartData(
-          maxY: maxY == 0 ? 10 : maxY * 1.2,
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final texto = value == 0 ? 'Receita' : 'Despesa';
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      texto,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                    ),
-                  );
-                },
+      child: SizedBox(
+        height: 200,
+        child: BarChart(
+          BarChartData(
+            maxY: maxY == 0 ? 10 : maxY * 1.35,
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+            barTouchData: BarTouchData(
+              enabled: false,
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => Colors.transparent,
+                tooltipPadding: EdgeInsets.zero,
+                tooltipMargin: 4,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                  Formatters.moeda(rod.toY),
+                  TextStyle(color: rod.color, fontWeight: FontWeight.w700, fontSize: 12),
+                ),
               ),
             ),
+            titlesData: FlTitlesData(
+              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 22,
+                  getTitlesWidget: (value, meta) {
+                    final texto = value == 0 ? 'Receita' : 'Despesa';
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        texto,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            barGroups: [
+              BarChartGroupData(
+                x: 0,
+                showingTooltipIndicators: const [0],
+                barRods: [
+                  BarChartRodData(
+                    toY: resumo.receitaTotal,
+                    color: AppColors.receita,
+                    width: 42,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+              BarChartGroupData(
+                x: 1,
+                showingTooltipIndicators: const [0],
+                barRods: [
+                  BarChartRodData(
+                    toY: resumo.despesaTotal,
+                    color: AppColors.despesa,
+                    width: 42,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ],
           ),
-          barGroups: [
-            BarChartGroupData(x: 0, barRods: [
-              BarChartRodData(
-                toY: resumo.receitaTotal,
-                color: AppColors.receita,
-                width: 42,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ]),
-            BarChartGroupData(x: 1, barRods: [
-              BarChartRodData(
-                toY: resumo.despesaTotal,
-                color: AppColors.despesa,
-                width: 42,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ]),
-          ],
         ),
       ),
     );
@@ -659,6 +797,28 @@ class _TituloSecao extends StatelessWidget {
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
+    );
+  }
+}
+
+class _ItemLegendaIndicadores extends StatelessWidget {
+  final Color cor;
+  final String texto;
+  const _ItemLegendaIndicadores({required this.cor, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(texto, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      ],
     );
   }
 }

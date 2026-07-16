@@ -47,6 +47,7 @@ funcionar direto por cima, sem perder dados nunca mais.
 - [x] Etapa 5 — Gráficos avançados (evolução do lucro, histórico mensal)
 - [x] Etapa 6 — Tela **Configurações** (moto, combustível, metas)
 - [x] Etapa 7 — Metas, alertas e funcionalidades inteligentes
+- [x] Dashboard: período configurável (Dia/Semana/Mês/Personalizado, salvo) + gráfico com eixos, linha reta e valores visíveis
 
 ## Tecnologia
 

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/utils/indicadores_service.dart';
+import '../../core/utils/periodo_calculator.dart';
 import '../../domain/entities/periodo_filtro.dart';
 import '../../domain/entities/resumo_periodo.dart';
 import '../../domain/repositories/despesa_repository.dart';
@@ -152,47 +153,10 @@ class IndicadoresProvider extends ChangeNotifier {
   }
 
   ({DateTime inicio, DateTime fim}) _calcularIntervalo() {
-    final agora = DateTime.now();
-    final hoje = DateTime(agora.year, agora.month, agora.day);
-
-    switch (filtro) {
-      case PeriodoFiltro.dia:
-        return (inicio: hoje, fim: hoje.add(const Duration(days: 1)));
-
-      case PeriodoFiltro.semana:
-        // Semana começando na segunda-feira.
-        final inicioSemana = hoje.subtract(Duration(days: hoje.weekday - 1));
-        return (inicio: inicioSemana, fim: inicioSemana.add(const Duration(days: 7)));
-
-      case PeriodoFiltro.mes:
-        final inicioMes = DateTime(hoje.year, hoje.month, 1);
-        final inicioProximoMes = DateTime(hoje.year, hoje.month + 1, 1);
-        return (inicio: inicioMes, fim: inicioProximoMes);
-
-      case PeriodoFiltro.trimestre:
-        final trimestreAtual = ((hoje.month - 1) ~/ 3);
-        final mesInicioTrimestre = trimestreAtual * 3 + 1;
-        final inicioTrimestre = DateTime(hoje.year, mesInicioTrimestre, 1);
-        final inicioProximoTrimestre = DateTime(hoje.year, mesInicioTrimestre + 3, 1);
-        return (inicio: inicioTrimestre, fim: inicioProximoTrimestre);
-
-      case PeriodoFiltro.ano:
-        return (inicio: DateTime(hoje.year, 1, 1), fim: DateTime(hoje.year + 1, 1, 1));
-
-      case PeriodoFiltro.personalizado:
-        final fimExclusivo = DateTime(
-          periodoPersonalizadoFim.year,
-          periodoPersonalizadoFim.month,
-          periodoPersonalizadoFim.day,
-        ).add(const Duration(days: 1));
-        return (
-          inicio: DateTime(
-            periodoPersonalizadoInicio.year,
-            periodoPersonalizadoInicio.month,
-            periodoPersonalizadoInicio.day,
-          ),
-          fim: fimExclusivo,
-        );
-    }
+    return calcularIntervaloPeriodo(
+      filtro,
+      personalizadoInicio: periodoPersonalizadoInicio,
+      personalizadoFim: periodoPersonalizadoFim,
+    );
   }
 }

@@ -4,9 +4,46 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../domain/entities/periodo_filtro.dart';
 import '../../providers/configuracoes_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../widgets/indicador_card.dart';
+
+/// Texto amigável para exibir qual período o Dashboard está mostrando.
+String _tituloPeriodo(PeriodoFiltro periodo) {
+  switch (periodo) {
+    case PeriodoFiltro.dia:
+      return 'Hoje';
+    case PeriodoFiltro.semana:
+      return 'Semana atual';
+    case PeriodoFiltro.mes:
+      return 'Mês atual';
+    case PeriodoFiltro.trimestre:
+      return 'Trimestre atual';
+    case PeriodoFiltro.ano:
+      return 'Ano atual';
+    case PeriodoFiltro.personalizado:
+      return 'Personalizado';
+  }
+}
+
+/// Sufixo usado nos títulos dos cards (ex: "Receita do dia", "Receita da semana").
+String _sufixoPeriodo(PeriodoFiltro periodo) {
+  switch (periodo) {
+    case PeriodoFiltro.dia:
+      return 'do dia';
+    case PeriodoFiltro.semana:
+      return 'da semana';
+    case PeriodoFiltro.mes:
+      return 'do mês';
+    case PeriodoFiltro.trimestre:
+      return 'do trimestre';
+    case PeriodoFiltro.ano:
+      return 'do ano';
+    case PeriodoFiltro.personalizado:
+      return 'do período';
+  }
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +60,105 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<DashboardProvider>().carregar();
       context.read<ConfiguracoesProvider>().carregar();
     });
+  }
+
+  Future<void> _abrirSeletorPeriodo(DashboardProvider provider) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Mostrar painel de:',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final opcao in [
+                  PeriodoFiltro.dia,
+                  PeriodoFiltro.semana,
+                  PeriodoFiltro.mes,
+                ])
+                  ListTile(
+                    leading: Icon(
+                      provider.periodo == opcao
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      color: provider.periodo == opcao
+                          ? AppColors.primary
+                          : AppColors.textDisabled,
+                    ),
+                    title: Text(
+                      _tituloPeriodo(opcao),
+                      style: const TextStyle(color: AppColors.textPrimary),
+                    ),
+                    onTap: () async {
+                      Navigator.of(context).pop();
+                      await provider.mudarPeriodo(opcao);
+                    },
+                  ),
+                ListTile(
+                  leading: Icon(
+                    provider.periodo == PeriodoFiltro.personalizado
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    color: provider.periodo == PeriodoFiltro.personalizado
+                        ? AppColors.primary
+                        : AppColors.textDisabled,
+                  ),
+                  title: const Text(
+                    'Personalizado (escolher intervalo)',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    final resultado = await showDateRangePicker(
+                      context: this.context,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                      initialDateRange: DateTimeRange(
+                        start: provider.periodoPersonalizadoInicio,
+                        end: provider.periodoPersonalizadoFim,
+                      ),
+                      locale: const Locale('pt', 'BR'),
+                    );
+                    if (resultado != null) {
+                      await provider.definirPeriodoPersonalizado(resultado.start, resultado.end);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -44,11 +180,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  _Cabecalho(),
+                  _Cabecalho(
+                    provider: provider,
+                    onTapPeriodo: () => _abrirSeletorPeriodo(provider),
+                  ),
                   const SizedBox(height: 20),
                   _CardsPrincipais(provider: provider),
-                  const SizedBox(height: 16),
-                  const _MetaDiaria(),
+                  if (provider.periodo == PeriodoFiltro.dia) ...[
+                    const SizedBox(height: 16),
+                    const _MetaDiaria(),
+                  ],
                   const SizedBox(height: 24),
                   const _TituloSecao('Últimos 7 dias'),
                   const SizedBox(height: 12),
@@ -68,38 +209,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _Cabecalho extends StatelessWidget {
+  final DashboardProvider provider;
+  final VoidCallback onTapPeriodo;
+
+  const _Cabecalho({required this.provider, required this.onTapPeriodo});
+
   @override
   Widget build(BuildContext context) {
     final agora = DateTime.now();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              Formatters.dataExtenso(agora),
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              'Seu painel de hoje',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                Formatters.dataExtenso(agora),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+              const SizedBox(height: 2),
+              Text(
+                'Painel · ${_tituloPeriodo(provider.periodo)}',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-          child: const Icon(Icons.two_wheeler_rounded, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        InkWell(
+          onTap: onTapPeriodo,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(Icons.tune_rounded, color: AppColors.primary),
+          ),
         ),
       ],
     );
@@ -129,7 +282,8 @@ class _CardsPrincipais extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resumo = provider.resumoHoje;
+    final resumo = provider.resumoPeriodo;
+    final sufixo = _sufixoPeriodo(provider.periodo);
 
     return GridView.count(
       crossAxisCount: 2,
@@ -140,21 +294,21 @@ class _CardsPrincipais extends StatelessWidget {
       childAspectRatio: 1.35,
       children: [
         IndicadorCard(
-          titulo: 'Receita do dia',
+          titulo: 'Receita $sufixo',
           valor: Formatters.moeda(resumo.receitaTotal),
           icone: Icons.trending_up_rounded,
           cor: AppColors.receita,
           corFundo: AppColors.receitaSoft,
         ),
         IndicadorCard(
-          titulo: 'Despesa do dia',
+          titulo: 'Despesa $sufixo',
           valor: Formatters.moeda(resumo.despesaTotal),
           icone: Icons.trending_down_rounded,
           cor: AppColors.despesa,
           corFundo: AppColors.despesaSoft,
         ),
         IndicadorCard(
-          titulo: 'Lucro do dia',
+          titulo: 'Lucro $sufixo',
           valor: Formatters.moeda(resumo.lucroLiquido),
           icone: Icons.savings_rounded,
           cor: AppColors.lucro,
@@ -195,41 +349,117 @@ class _GraficoDesempenho extends StatelessWidget {
   Widget build(BuildContext context) {
     final dias = provider.ultimos7Dias;
 
-    if (dias.isEmpty || dias.every((d) => d.receitaTotal == 0 && d.despesaTotal == 0)) {
-      return _EstadoVazioGrafico();
+    if (dias.isEmpty || dias.every((d) => d.receita == 0 && d.lucro == 0)) {
+      return const _EstadoVazioGrafico();
     }
 
-    final maxY = dias
-        .map((d) => d.receitaTotal > d.despesaTotal ? d.receitaTotal : d.despesaTotal)
+    final maiorValor = dias
+        .map((d) => d.receita > d.lucro ? d.receita : d.lucro)
         .fold<double>(0, (a, b) => a > b ? a : b);
+    final menorValor = dias
+        .map((d) => d.lucro < 0 ? d.lucro : 0.0)
+        .fold<double>(0, (a, b) => a < b ? a : b);
+
+    final maxY = maiorValor == 0 ? 10.0 : maiorValor * 1.25;
+    final minY = menorValor == 0 ? 0.0 : menorValor * 1.25;
+    final intervaloEixoY = ((maxY - minY) / 4).clamp(1, double.infinity);
 
     return Container(
-      height: 220,
-      padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: LineChart(
-        LineChartData(
-          minY: 0,
-          maxY: maxY == 0 ? 10 : maxY * 1.2,
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: const FlTitlesData(
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _LegendaGrafico(),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 220,
+            child: LineChart(
+              LineChartData(
+                minY: minY,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: intervaloEixoY.toDouble(),
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: AppColors.border,
+                    strokeWidth: 1,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.surfaceElevated,
+                    getTooltipItems: (spots) => spots.map((spot) {
+                      final cor = spot.bar.color ?? AppColors.textPrimary;
+                      return LineTooltipItem(
+                        Formatters.moeda(spot.y),
+                        TextStyle(color: cor, fontWeight: FontWeight.w700, fontSize: 12),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: intervaloEixoY.toDouble(),
+                      getTitlesWidget: (value, meta) => Text(
+                        _valorCompacto(value),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        final indice = value.toInt();
+                        if (indice < 0 || indice >= dias.length) return const SizedBox();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            _diaAbreviado(dias[indice].dia),
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  _linha(dias.map((d) => d.receita).toList(), AppColors.receita),
+                  _linha(dias.map((d) => d.lucro).toList(), AppColors.lucro),
+                ],
+              ),
+            ),
           ),
-          lineBarsData: [
-            _linha(dias.map((d) => d.receitaTotal).toList(), AppColors.receita),
-            _linha(dias.map((d) => d.lucroLiquido).toList(), AppColors.lucro),
-          ],
-        ),
+          const SizedBox(height: 16),
+          _ValoresPorDia(dias: dias),
+        ],
       ),
     );
+  }
+
+  String _diaAbreviado(DateTime data) {
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}';
+  }
+
+  String _valorCompacto(double valor) {
+    if (valor.abs() >= 1000) {
+      return '${(valor / 1000).toStringAsFixed(1)}k';
+    }
+    return valor.toStringAsFixed(0);
   }
 
   LineChartBarData _linha(List<double> valores, Color cor) {
@@ -237,11 +467,105 @@ class _GraficoDesempenho extends StatelessWidget {
       spots: [
         for (int i = 0; i < valores.length; i++) FlSpot(i.toDouble(), valores[i]),
       ],
-      isCurved: true,
+      isCurved: false,
       color: cor,
-      barWidth: 3,
-      dotData: const FlDotData(show: false),
-      belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.08)),
+      barWidth: 2.5,
+      dotData: FlDotData(
+        show: true,
+        getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+          radius: 3.5,
+          color: cor,
+          strokeWidth: 2,
+          strokeColor: AppColors.surface,
+        ),
+      ),
+      belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.06)),
+    );
+  }
+}
+
+class _LegendaGrafico extends StatelessWidget {
+  const _LegendaGrafico();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        _ItemLegenda(cor: AppColors.receita, texto: 'Receita'),
+        SizedBox(width: 16),
+        _ItemLegenda(cor: AppColors.lucro, texto: 'Lucro'),
+      ],
+    );
+  }
+}
+
+class _ItemLegenda extends StatelessWidget {
+  final Color cor;
+  final String texto;
+  const _ItemLegenda({required this.cor, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(texto, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      ],
+    );
+  }
+}
+
+/// Lista os valores de cada um dos 7 dias por extenso, para que o usuário
+/// veja os números exatos sem precisar tocar no gráfico.
+class _ValoresPorDia extends StatelessWidget {
+  final List<({DateTime dia, double receita, double lucro})> dias;
+  const _ValoresPorDia({required this.dias});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: dias.map((d) {
+          return Container(
+            width: 92,
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${d.dia.day.toString().padLeft(2, '0')}/${d.dia.month.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    color: AppColors.textDisabled,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  Formatters.moeda(d.receita),
+                  style: const TextStyle(color: AppColors.receita, fontSize: 11.5),
+                ),
+                Text(
+                  Formatters.moeda(d.lucro),
+                  style: const TextStyle(color: AppColors.lucro, fontSize: 11.5),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -256,7 +580,7 @@ class _MetaDiaria extends StatelessWidget {
         final meta = configProvider.configuracoes.metaDiaria;
         if (meta <= 0) return const SizedBox.shrink();
 
-        final receita = dashboardProvider.resumoHoje.receitaTotal;
+        final receita = dashboardProvider.resumoPeriodo.receitaTotal;
         final progresso = (receita / meta).clamp(0.0, 1.0);
         final falta = (meta - receita).clamp(0, double.infinity);
         final atingiu = receita >= meta;
@@ -321,6 +645,8 @@ class _MetaDiaria extends StatelessWidget {
 }
 
 class _EstadoVazioGrafico extends StatelessWidget {
+  const _EstadoVazioGrafico();
+
   @override
   Widget build(BuildContext context) {
     return Container(

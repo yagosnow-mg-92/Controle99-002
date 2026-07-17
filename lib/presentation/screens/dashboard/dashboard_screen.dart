@@ -219,6 +219,7 @@ class _Cabecalho extends StatelessWidget {
     final agora = DateTime.now();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
@@ -229,9 +230,9 @@ class _Cabecalho extends StatelessWidget {
                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 2),
-              Text(
-                'Painel · ${_tituloPeriodo(provider.periodo)}',
-                style: const TextStyle(
+              const Text(
+                'Painel',
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -245,13 +246,27 @@ class _Cabecalho extends StatelessWidget {
           onTap: onTapPeriodo,
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(Icons.tune_rounded, color: AppColors.primary),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _tituloPeriodo(provider.periodo),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.tune_rounded, color: AppColors.primary, size: 18),
+              ],
+            ),
           ),
         ),
       ],

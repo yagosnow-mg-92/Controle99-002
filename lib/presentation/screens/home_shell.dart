@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'corrida/corrida_screen.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'despesas/despesas_screen.dart';
 import 'indicadores/indicadores_screen.dart';
 import 'configuracoes/configuracoes_screen.dart';
 import 'receita/receita_screen.dart';
 
-/// Casca de navegação principal. Mantém as 5 áreas do app acessíveis
+/// Casca de navegação principal. Mantém as áreas do app acessíveis
 /// por uma barra inferior, seguindo o padrão Material 3.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -20,6 +21,7 @@ class _HomeShellState extends State<HomeShell> {
 
   final _telas = const [
     DashboardScreen(),
+    CorridaScreen(),
     ReceitaScreen(),
     DespesasScreen(),
     IndicadoresScreen(),
@@ -35,6 +37,7 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Painel'),
+          NavigationDestination(icon: Icon(Icons.two_wheeler_rounded), label: 'Corrida'),
           NavigationDestination(icon: Icon(Icons.add_circle_outline_rounded), label: 'Receita'),
           NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Despesas'),
           NavigationDestination(icon: Icon(Icons.bar_chart_rounded), label: 'Indicadores'),

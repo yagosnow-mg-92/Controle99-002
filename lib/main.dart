@@ -3,14 +3,18 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/services/foreground_task_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/configuracoes_repository_impl.dart';
+import 'data/repositories/corrida_repository_impl.dart';
 import 'data/repositories/despesa_repository_impl.dart';
 import 'data/repositories/receita_repository_impl.dart';
 import 'domain/repositories/configuracoes_repository.dart';
+import 'domain/repositories/corrida_repository.dart';
 import 'domain/repositories/despesa_repository.dart';
 import 'domain/repositories/receita_repository.dart';
 import 'presentation/providers/configuracoes_provider.dart';
+import 'presentation/providers/corrida_provider.dart';
 import 'presentation/providers/dashboard_provider.dart';
 import 'presentation/providers/despesa_provider.dart';
 import 'presentation/providers/indicadores_provider.dart';
@@ -20,6 +24,7 @@ import 'presentation/screens/home_shell.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
+  ForegroundTaskService.inicializar();
   runApp(const MotoGestorApp());
 }
 
@@ -37,6 +42,7 @@ class MotoGestorApp extends StatelessWidget {
         Provider<ReceitaRepository>(create: (_) => ReceitaRepositoryImpl()),
         Provider<DespesaRepository>(create: (_) => DespesaRepositoryImpl()),
         Provider<ConfiguracoesRepository>(create: (_) => ConfiguracoesRepositoryImpl()),
+        Provider<CorridaRepository>(create: (_) => CorridaRepositoryImpl()),
         ChangeNotifierProvider<DashboardProvider>(
           create: (context) => DashboardProvider(
             receitaRepository: context.read<ReceitaRepository>(),
@@ -62,6 +68,12 @@ class MotoGestorApp extends StatelessWidget {
         ChangeNotifierProvider<ConfiguracoesProvider>(
           create: (context) => ConfiguracoesProvider(
             repository: context.read<ConfiguracoesRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider<CorridaProvider>(
+          create: (context) => CorridaProvider(
+            repository: context.read<CorridaRepository>(),
+            receitaRepository: context.read<ReceitaRepository>(),
           ),
         ),
       ],

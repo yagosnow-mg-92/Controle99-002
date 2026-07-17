@@ -22,8 +22,9 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -73,6 +74,76 @@ class DatabaseHelper {
     for (final categoria in categoriasPadrao) {
       await db.insert('categorias_despesa', {'nome': categoria});
     }
+
+    await _criarTabelasCorrida(db);
+  }
+
+  /// Roda quando um usuário que já tinha o app instalado (versão 1 do
+  /// banco) recebe uma atualização. Só CRIA as tabelas novas — nunca
+  /// altera ou apaga as tabelas antigas, preservando 100% dos dados que
+  /// a pessoa já tinha lançado.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _criarTabelasCorrida(db);
+    }
+  }
+
+  Future<void> _criarTabelasCorrida(Database db) async {
+    // Uma "sessão de trabalho" é o período entre "Ficar online" e
+    // "Ficar offline". status: offline | online | corrida_iniciada | com_passageiro
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sessoes_trabalho (
+        id TEXT PRIMARY KEY,
+        inicio TEXT NOT NULL,
+        fim TEXT,
+        status TEXT NOT NULL
+      )
+    ''');
+
+    // Registro de cada clique importante (ficou online, iniciou corrida,
+    // cancelou, pegou passageiro, finalizou, ficou offline), com
+    // localização e endereço no momento do clique.
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS eventos_sessao (
+        id TEXT PRIMARY KEY,
+        sessao_id TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
+        rua TEXT,
+        bairro TEXT
+      )
+    ''');
+
+    // Uma corrida individual dentro de uma sessão.
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS corridas (
+        id TEXT PRIMARY KEY,
+        sessao_id TEXT NOT NULL,
+        hora_inicio TEXT NOT NULL,
+        hora_fim TEXT,
+        valor REAL NOT NULL,
+        cancelada INTEGER NOT NULL DEFAULT 0,
+        km_percorrido REAL NOT NULL DEFAULT 0,
+        receita_id TEXT
+      )
+    ''');
+
+    // Trajeto gravado por GPS. corrida_id fica nulo enquanto o motociclista
+    // está apenas "online" (procurando corrida), e preenchido quando uma
+    // corrida está em andamento — permite reconstruir tanto o trajeto de
+    // busca quanto o da corrida em si.
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pontos_rota (
+        id TEXT PRIMARY KEY,
+        sessao_id TEXT NOT NULL,
+        corrida_id TEXT,
+        timestamp TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL
+      )
+    ''');
   }
 
   Future<void> close() async {

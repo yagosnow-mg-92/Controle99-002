@@ -48,6 +48,38 @@ funcionar direto por cima, sem perder dados nunca mais.
 - [x] Etapa 6 — Tela **Configurações** (moto, combustível, metas)
 - [x] Etapa 7 — Metas, alertas e funcionalidades inteligentes
 - [x] Dashboard: período configurável (Dia/Semana/Mês/Personalizado, salvo) + gráfico com eixos, linha reta e valores visíveis
+- [x] Modo **Corrida**: lançamento automático de receita via GPS (online → corrida → passageiro → finalizar), com rastreamento em segundo plano
+
+## Modo Corrida (rastreamento por GPS)
+
+Nova aba dedicada a quem quer registrar os ganhos automaticamente, sem
+digitar km manualmente. Funciona como uma máquina de estados:
+
+```
+Offline → [Ficar online] → Online → [Iniciar corrida] → Corrida iniciada
+   ↑                          ↓                              ↓
+   └──── [Ficar offline] ─────┘                      [Peguei o passageiro]
+                                                              ↓
+                                                       Com passageiro
+                                                              ↓
+                                                     [Finalizar corrida]
+                                                              ↓
+                                                        volta pra Online
+```
+
+- Cada clique importante grava horário, coordenadas e endereço (rua/bairro).
+- Enquanto online ou em corrida, a rota é gravada por GPS — inclusive com
+  a tela apagada ou o app minimizado, via serviço em primeiro plano do
+  Android (notificação fixa obrigatória enquanto ativo, é uma regra do
+  próprio sistema).
+- Ao finalizar uma corrida, o km percorrido é calculado a partir da rota
+  gravada e um lançamento de Receita é criado automaticamente.
+- Ao cancelar uma corrida, é pedido o valor da taxa de deslocamento.
+
+**Permissão necessária:** localização "Permitir o tempo todo" (não
+apenas "Durante o uso"), pedida automaticamente ao tocar em "Ficar
+online". Sem essa permissão em modo "sempre", o Android não garante o
+rastreamento em segundo plano.
 
 ## Tecnologia
 

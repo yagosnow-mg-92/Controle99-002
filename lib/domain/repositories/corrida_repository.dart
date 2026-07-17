@@ -1,0 +1,35 @@
+import '../entities/corrida.dart';
+import '../entities/evento_sessao.dart';
+import '../entities/ponto_rota.dart';
+import '../entities/sessao_trabalho.dart';
+import '../entities/status_sessao.dart';
+
+abstract class CorridaRepository {
+  /// Retorna a sessão em aberto (fim == null), se houver — usada para
+  /// restaurar o estado caso o app seja fechado enquanto online.
+  Future<SessaoTrabalho?> sessaoAberta();
+
+  Future<SessaoTrabalho> criarSessao(DateTime inicio);
+  Future<void> atualizarStatusSessao(String sessaoId, StatusSessao status);
+  Future<void> encerrarSessao(String sessaoId, DateTime fim);
+
+  Future<void> registrarEvento(EventoSessao evento);
+
+  Future<Corrida> criarCorrida({
+    required String sessaoId,
+    required DateTime horaInicio,
+    required double valor,
+  });
+  Future<Corrida?> corridaAberta(String sessaoId);
+  Future<void> atualizarValorCorrida(String corridaId, double novoValor, {bool? cancelada});
+  Future<void> finalizarCorrida(String corridaId, DateTime horaFim, double kmPercorrido);
+  Future<void> vincularReceita(String corridaId, String receitaId);
+
+  Future<void> registrarPontoRota(PontoRota ponto);
+  Future<List<PontoRota>> pontosDaCorrida(String corridaId);
+
+  /// Lista as sessões já encerradas, mais recentes primeiro — base para
+  /// os relatórios futuros mencionados pelo usuário.
+  Future<List<SessaoTrabalho>> listarSessoes();
+  Future<List<Corrida>> listarCorridasDaSessao(String sessaoId);
+}

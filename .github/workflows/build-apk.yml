@@ -41,6 +41,21 @@ jobs:
             flutter create --platforms=android --org com.motogestor.app --project-name moto_gestor .
           fi
 
+      - name: Configurar permissões de GPS (feature Corrida)
+        run: python3 scripts/configurar_permissoes_android.py
+
+      - name: Configurar plataforma Android com permissões de GPS
+        run: python3 scripts/configurar_permissoes.py
+
+      - name: Verificar permissões de GPS configuradas
+        run: |
+          if ! grep -q "ACCESS_BACKGROUND_LOCATION" android/app/src/main/AndroidManifest.xml; then
+            echo "ERRO: permissões de localização não foram aplicadas ao AndroidManifest.xml."
+            cat android/app/src/main/AndroidManifest.xml
+            exit 1
+          fi
+          echo "AndroidManifest.xml OK: permissões de localização presentes."
+
       - name: Configurar assinatura de release
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore

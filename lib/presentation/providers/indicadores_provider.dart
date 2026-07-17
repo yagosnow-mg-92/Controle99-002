@@ -74,7 +74,15 @@ class IndicadoresProvider extends ChangeNotifier {
       fim: intervalo.fim,
     );
 
-    resumoAnterior = await _calcularResumoAnterior(intervalo.inicio, intervalo.fim);
+    // O comparativo com "período anterior" só faz sentido para filtros
+    // fixos (Dia, Semana, Mês, Trimestre, Ano), onde "anterior" tem um
+    // significado claro (ontem, semana passada, mês passado...). Para
+    // Personalizado, o usuário escolhe datas livremente, então "os N dias
+    // imediatamente antes" não corresponde a nada que ele realmente
+    // escolheu — por isso não exibimos essa comparação nesse caso.
+    resumoAnterior = filtro == PeriodoFiltro.personalizado
+        ? null
+        : await _calcularResumoAnterior(intervalo.inicio, intervalo.fim);
     serieDiaria = await _calcularSerieDiaria(intervalo.inicio, intervalo.fim);
     historicoMensal = await _calcularHistoricoMensal();
 

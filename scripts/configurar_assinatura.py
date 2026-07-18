@@ -77,9 +77,16 @@ def bump_compile_sdk_groovy(caminho: pathlib.Path) -> None:
     conteudo = caminho.read_text(encoding="utf-8")
     padrao = re.compile(r"compileSdk\s+flutter\.compileSdkVersion")
     novo_conteudo, quantidade = padrao.subn("compileSdk 36", conteudo, count=1)
-    if quantidade > 0:
-        caminho.write_text(novo_conteudo, encoding="utf-8")
-        print("compileSdk fixado em 36 (build.gradle Groovy).")
+    if quantidade == 0:
+        print(
+            "ERRO: não encontrei a linha 'compileSdk flutter.compileSdkVersion' "
+            "para substituir (build.gradle Groovy). Conteúdo atual abaixo:",
+            file=sys.stderr,
+        )
+        print(conteudo, file=sys.stderr)
+        sys.exit(1)
+    caminho.write_text(novo_conteudo, encoding="utf-8")
+    print("compileSdk fixado em 36 (build.gradle Groovy).")
 
 
 def patch_kotlin(caminho: pathlib.Path) -> None:
@@ -149,11 +156,18 @@ if (keystorePropertiesFile.exists()) {
 def bump_compile_sdk_kotlin(caminho: pathlib.Path) -> None:
     """Ver bump_compile_sdk_groovy — mesma ideia, sintaxe Kotlin DSL."""
     conteudo = caminho.read_text(encoding="utf-8")
-    padrao = re.compile(r"compileSdk\s*=\s*flutter\.compileSdkVersion")
+    padrao = re.compile(r"compileSdk\s*=\s*\S+")
     novo_conteudo, quantidade = padrao.subn("compileSdk = 36", conteudo, count=1)
-    if quantidade > 0:
-        caminho.write_text(novo_conteudo, encoding="utf-8")
-        print("compileSdk fixado em 36 (build.gradle.kts Kotlin DSL).")
+    if quantidade == 0:
+        print(
+            "ERRO: não encontrei a linha 'compileSdk = ...' para substituir "
+            "(build.gradle.kts Kotlin DSL). Conteúdo atual abaixo:",
+            file=sys.stderr,
+        )
+        print(conteudo, file=sys.stderr)
+        sys.exit(1)
+    caminho.write_text(novo_conteudo, encoding="utf-8")
+    print("compileSdk fixado em 36 (build.gradle.kts Kotlin DSL).")
 
 
 def main() -> None:

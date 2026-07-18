@@ -36,7 +36,10 @@ dependencies:
   # Rastreamento de rota (modo Corrida). flutter_foreground_task mantém
   # o processo do app vivo em segundo plano (via serviço em primeiro
   # plano do Android); geolocator cuida do GPS em si dentro dele.
-  geolocator: ^13.0.2
+  # Versão fixada em 11.x: a partir da 13.x, o geolocator_android (4.6+)
+  # tem um bug de incompatibilidade com o Android Gradle Plugin usado
+  # pelo Flutter 3.24.5 ("compileSdkVersion is not specified").
+  geolocator: ^11.1.0
   geocoding: ^3.0.0
   permission_handler: ^11.3.1
   flutter_foreground_task: ^8.10.4

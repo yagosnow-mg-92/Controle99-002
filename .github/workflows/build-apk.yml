@@ -91,21 +91,29 @@ jobs:
             }
 
           echo "--- Verificando build.gradle ---"
-          if ! grep -qE "signingConfig\s*=?\s*signingConfigs\.release" android/app/build.gradle; then
-            echo "ERRO: build.gradle NÃO está apontando para a signingConfig de release."
+          if [ -f "android/app/build.gradle.kts" ]; then
+            GRADLE_FILE="android/app/build.gradle.kts"
+            PADRAO='signingConfig *= *signingConfigs\.getByName\("release"\)'
+          else
+            GRADLE_FILE="android/app/build.gradle"
+            PADRAO='signingConfig *=? *signingConfigs\.release'
+          fi
+
+          if ! grep -qE "$PADRAO" "$GRADLE_FILE"; then
+            echo "ERRO: $GRADLE_FILE NÃO está apontando para a signingConfig de release."
             echo "O script configurar_assinatura.py não conseguiu aplicar a alteração."
-            echo "----- build.gradle atual -----"
-            cat android/app/build.gradle
+            echo "----- $GRADLE_FILE atual -----"
+            cat "$GRADLE_FILE"
             exit 1
           fi
-          echo "build.gradle OK: usando signingConfigs.release."
+          echo "$GRADLE_FILE OK: usando signingConfig de release."
 
           echo "--- Código de versão desta build ---"
           echo "versionCode = ${{ github.run_number }} (sempre crescente, evita o erro de 'conflito' em reinstalações)"
 
           echo ""
-          echo "===== CONTEÚDO COMPLETO DE android/app/build.gradle ====="
-          cat android/app/build.gradle
+          echo "===== CONTEÚDO COMPLETO DE $GRADLE_FILE ====="
+          cat "$GRADLE_FILE"
           echo "===== FIM DO ARQUIVO ====="
 
       - name: Instalar dependências

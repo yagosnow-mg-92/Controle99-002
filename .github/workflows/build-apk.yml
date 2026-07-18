@@ -119,6 +119,24 @@ jobs:
       - name: Instalar dependências
         run: flutter pub get
 
+      - name: Forçar compileSdk global (afeta app e todos os plugins)
+        run: |
+          # O erro do geocoding_android é sobre o compileSdk do PRÓPRIO
+          # plugin, não do nosso app — e isso é controlado pelo valor
+          # global em android/local.properties (flutter.compileSdkVersion),
+          # que o Flutter Gradle Plugin repassa a todos os subprojetos
+          # (app + plugins). Editar só o build.gradle do nosso app não
+          # resolve, porque cada plugin lê esse mesmo valor global.
+          LOCAL_PROPS="android/local.properties"
+          touch "$LOCAL_PROPS"
+          if grep -q "^flutter.compileSdkVersion=" "$LOCAL_PROPS"; then
+            sed -i "s/^flutter.compileSdkVersion=.*/flutter.compileSdkVersion=36/" "$LOCAL_PROPS"
+          else
+            echo "flutter.compileSdkVersion=36" >> "$LOCAL_PROPS"
+          fi
+          echo "----- android/local.properties -----"
+          cat "$LOCAL_PROPS"
+
       - name: Analisar código
         run: flutter analyze --no-fatal-infos || true
 

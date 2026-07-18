@@ -69,6 +69,19 @@ if (keystorePropertiesFile.exists()) {
     print("Assinatura de release configurada com sucesso em build.gradle (Groovy).")
 
 
+def bump_compile_sdk_groovy(caminho: pathlib.Path) -> None:
+    """Algumas dependências (ex: geocoding_android) exigem compileSdk >= 34,
+    mas o padrão do Flutter às vezes ainda aponta para uma versão mais
+    antiga. Fixamos em 36 (a mais recente disponível nos runners do
+    GitHub Actions no momento) para evitar esse tipo de erro."""
+    conteudo = caminho.read_text(encoding="utf-8")
+    padrao = re.compile(r"compileSdk\s+flutter\.compileSdkVersion")
+    novo_conteudo, quantidade = padrao.subn("compileSdk 36", conteudo, count=1)
+    if quantidade > 0:
+        caminho.write_text(novo_conteudo, encoding="utf-8")
+        print("compileSdk fixado em 36 (build.gradle Groovy).")
+
+
 def patch_kotlin(caminho: pathlib.Path) -> None:
     conteudo = caminho.read_text(encoding="utf-8")
 
@@ -133,11 +146,23 @@ if (keystorePropertiesFile.exists()) {
     print("Assinatura de release configurada com sucesso em build.gradle.kts (Kotlin DSL).")
 
 
+def bump_compile_sdk_kotlin(caminho: pathlib.Path) -> None:
+    """Ver bump_compile_sdk_groovy — mesma ideia, sintaxe Kotlin DSL."""
+    conteudo = caminho.read_text(encoding="utf-8")
+    padrao = re.compile(r"compileSdk\s*=\s*flutter\.compileSdkVersion")
+    novo_conteudo, quantidade = padrao.subn("compileSdk = 36", conteudo, count=1)
+    if quantidade > 0:
+        caminho.write_text(novo_conteudo, encoding="utf-8")
+        print("compileSdk fixado em 36 (build.gradle.kts Kotlin DSL).")
+
+
 def main() -> None:
     if KOTLIN_FILE.exists():
         patch_kotlin(KOTLIN_FILE)
+        bump_compile_sdk_kotlin(KOTLIN_FILE)
     elif GROOVY_FILE.exists():
         patch_groovy(GROOVY_FILE)
+        bump_compile_sdk_groovy(GROOVY_FILE)
     else:
         print(
             f"ERRO: nem {GROOVY_FILE} nem {KOTLIN_FILE} foram encontrados.",

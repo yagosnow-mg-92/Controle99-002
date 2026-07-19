@@ -42,9 +42,6 @@ jobs:
           fi
 
       - name: Configurar permissões de GPS (feature Corrida)
-        run: python3 scripts/configurar_permissoes_android.py
-
-      - name: Configurar plataforma Android com permissões de GPS
         run: python3 scripts/configurar_permissoes.py
 
       - name: Verificar permissões de GPS configuradas
@@ -55,6 +52,18 @@ jobs:
             exit 1
           fi
           echo "AndroidManifest.xml OK: permissões de localização presentes."
+
+      - name: Forçar compileSdk alto em todos os subprojetos (app + plugins)
+        run: |
+          python3 scripts/configurar_compile_sdk.py
+          echo ""
+          echo "===== CONTEÚDO DO android/build.gradle(.kts) RAIZ ====="
+          if [ -f "android/build.gradle.kts" ]; then
+            cat android/build.gradle.kts
+          else
+            cat android/build.gradle
+          fi
+          echo "===== FIM DO ARQUIVO ====="
 
       - name: Configurar assinatura de release
         run: |
@@ -118,24 +127,6 @@ jobs:
 
       - name: Instalar dependências
         run: flutter pub get
-
-      - name: Forçar compileSdk global (afeta app e todos os plugins)
-        run: |
-          # O erro do geocoding_android é sobre o compileSdk do PRÓPRIO
-          # plugin, não do nosso app — e isso é controlado pelo valor
-          # global em android/local.properties (flutter.compileSdkVersion),
-          # que o Flutter Gradle Plugin repassa a todos os subprojetos
-          # (app + plugins). Editar só o build.gradle do nosso app não
-          # resolve, porque cada plugin lê esse mesmo valor global.
-          LOCAL_PROPS="android/local.properties"
-          touch "$LOCAL_PROPS"
-          if grep -q "^flutter.compileSdkVersion=" "$LOCAL_PROPS"; then
-            sed -i "s/^flutter.compileSdkVersion=.*/flutter.compileSdkVersion=36/" "$LOCAL_PROPS"
-          else
-            echo "flutter.compileSdkVersion=36" >> "$LOCAL_PROPS"
-          fi
-          echo "----- android/local.properties -----"
-          cat "$LOCAL_PROPS"
 
       - name: Analisar código
         run: flutter analyze --no-fatal-infos || true

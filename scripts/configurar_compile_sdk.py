@@ -33,10 +33,19 @@ BLOCO_KOTLIN = """
 // logo em seguida, ele sobrescrevia o nosso valor de volta. Com
 // `afterEvaluate`, nosso ajuste roda por último, depois de tudo.
 subprojects {
-    afterEvaluate {
+    val aplicarCompileSdk: () -> Unit = {
         extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.let {
             it.compileSdk = 36
         }
+    }
+    // Alguns subprojetos já podem estar avaliados nesse ponto (o próprio
+    // template do Flutter usa `evaluationDependsOn(":app")`, o que força
+    // avaliação antecipada de alguns módulos). Nesse caso, `afterEvaluate`
+    // lança exceção — então aplicamos direto quando isso acontece.
+    try {
+        afterEvaluate { aplicarCompileSdk() }
+    } catch (e: Exception) {
+        aplicarCompileSdk()
     }
 }
 // ----- Fim -----
@@ -76,7 +85,23 @@ def main() -> None:
         print("compileSdk global já configurado, nada a fazer.")
         return
 
-    conteudo = conteudo + "\n" + bloco
+    # IMPORTANTE: inserimos no INÍCIO do arquivo (mas depois de eventuais
+    # linhas `import`, que em Kotlin DSL precisam ficar sempre primeiro).
+    # O template do Flutter tem uma linha (`evaluationDependsOn(":app")`)
+    # que força uma avaliação antecipada de alguns subprojetos. Se o
+    # nosso bloco `afterEvaluate` for registrado depois dela no arquivo,
+    # chega tarde demais pra alguns módulos (que já terminaram de
+    # avaliar) e o Gradle recusa com "already evaluated".
+    linhas = conteudo.split("\n")
+    posicao_insercao = 0
+    for i, linha in enumerate(linhas):
+        if linha.strip().startswith("import ") or linha.strip() == "":
+            posicao_insercao = i + 1
+        else:
+            break
+
+    linhas.insert(posicao_insercao, bloco)
+    conteudo = "\n".join(linhas)
     caminho.write_text(conteudo, encoding="utf-8")
     print(f"compileSdk global (36) forçado para todos os subprojetos em {caminho}.")
 

@@ -25,17 +25,13 @@ BLOCO_KOTLIN = """
 // ----- Início: força compileSdk alto em todos os subprojetos -----
 // Adicionado automaticamente pelo script configurar_compile_sdk.py.
 // Alguns plugins (ex: geocoding_android) exigem compileSdk >= 34, mas
-// o valor padrão do Flutter pode ficar abaixo disso. Isso garante que
-// TODOS os módulos (app + plugins) compilem contra a versão certa,
-// mesmo os que vêm de dentro dos pacotes do pub.dev.
+// o valor padrão do Flutter pode ficar abaixo disso. Plugins Flutter
+// são sempre módulos Android "library" (nunca "application" — esse é
+// só o nosso app, que já configuramos direto em android/app/build.gradle.kts),
+// então só precisamos interceptar o tipo "library" aqui.
 subprojects {
     plugins.withId("com.android.library") {
         extensions.configure(com.android.build.gradle.LibraryExtension::class.java) {
-            compileSdk = 36
-        }
-    }
-    plugins.withId("com.android.application") {
-        extensions.configure(com.android.build.gradle.BaseAppModuleExtension::class.java) {
             compileSdk = 36
         }
     }

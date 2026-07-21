@@ -22,10 +22,19 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   final _embarqueController = TextEditingController();
   final _destinoController = TextEditingController();
   final _kmFocusNode = FocusNode();
+  final _scrollController = ScrollController();
 
   DateTime _dataSelecionada = DateTime.now();
   double _valorPorKmPreview = 0;
   String _buscaTexto = '';
+
+  /// Quando não-nulo, o formulário está mostrando um lançamento já
+  /// existente (aberto com duplo toque na lista), em vez de um novo.
+  String? _idEmVisualizacao;
+
+  /// Enquanto true, os campos ficam travados (só leitura) — precisa
+  /// tocar em "Editar" pra poder alterar algo.
+  bool _somenteLeitura = false;
 
   @override
   void initState() {
@@ -45,6 +54,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _embarqueController.dispose();
     _destinoController.dispose();
     _kmFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -56,7 +66,55 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     });
   }
 
+  /// Duplo toque num lançamento da lista: preenche o formulário lá em
+  /// cima com os dados dele (em modo só-leitura) e rola a tela até lá,
+  /// como se o usuário tivesse acabado de digitar tudo.
+  void _visualizarLancamento(Receita r) {
+    _kmController.text = r.kmRodados.toString();
+    _valorController.text = r.valorRecebido.toString();
+    _observacaoController.text = r.observacao ?? '';
+    _embarqueController.text = r.localEmbarque ?? '';
+    _destinoController.text = r.localDestino ?? '';
+
+    final km = double.tryParse(r.kmRodados.toString()) ?? 0;
+    final valor = r.valorRecebido;
+
+    setState(() {
+      _dataSelecionada = r.data;
+      _idEmVisualizacao = r.id;
+      _somenteLeitura = true;
+      _valorPorKmPreview = km > 0 ? valor / km : 0;
+    });
+
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _habilitarEdicao() {
+    setState(() => _somenteLeitura = false);
+  }
+
+  /// Sai do modo visualização/edição e volta pro estado de "novo
+  /// lançamento", limpando tudo.
+  void _cancelarVisualizacao() {
+    _kmController.clear();
+    _valorController.clear();
+    _observacaoController.clear();
+    _embarqueController.clear();
+    _destinoController.clear();
+    setState(() {
+      _dataSelecionada = DateTime.now();
+      _idEmVisualizacao = null;
+      _somenteLeitura = false;
+      _valorPorKmPreview = 0;
+    });
+  }
+
   Future<void> _selecionarData() async {
+    if (_somenteLeitura) return;
     final hoje = DateTime.now();
     final resultado = await showDatePicker(
       context: context,
@@ -75,8 +133,10 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
 
     final km = double.parse(_kmController.text.replaceAll(',', '.'));
     final valor = double.parse(_valorController.text.replaceAll(',', '.'));
+    final editando = _idEmVisualizacao != null;
 
     await context.read<ReceitaProvider>().salvar(
+          id: _idEmVisualizacao,
           data: _dataSelecionada,
           kmRodados: km,
           valorRecebido: valor,
@@ -98,16 +158,23 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _observacaoController.clear();
     _embarqueController.clear();
     _destinoController.clear();
-    setState(() => _valorPorKmPreview = 0);
-    // A data NÃO é resetada de propósito: ao lançar vários dias
-    // retroativos seguidos, o usuário espera continuar no mesmo dia
-    // até trocar manualmente. O foco volta para o primeiro campo (Km),
-    // agilizando o próximo lançamento.
+    setState(() {
+      _valorPorKmPreview = 0;
+      _idEmVisualizacao = null;
+      _somenteLeitura = false;
+      // Ao editar um lançamento, volta pra data de hoje (o contexto
+      // mudou). Ao criar um novo, mantém a data — ver comentário abaixo.
+      if (editando) _dataSelecionada = DateTime.now();
+    });
+    // A data NÃO é resetada em lançamentos novos, de propósito: ao
+    // lançar vários dias retroativos seguidos, o usuário espera
+    // continuar no mesmo dia até trocar manualmente. O foco volta para
+    // o primeiro campo (Km), agilizando o próximo lançamento.
     FocusScope.of(context).requestFocus(_kmFocusNode);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Receita lançada com sucesso'),
+      SnackBar(
+        content: Text(editando ? 'Lançamento atualizado com sucesso' : 'Receita lançada com sucesso'),
         backgroundColor: AppColors.receita,
       ),
     );
@@ -121,6 +188,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
         child: Consumer<ReceitaProvider>(
           builder: (context, provider, _) {
             return ListView(
+              controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 _formulario(provider),
@@ -132,6 +200,11 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Toque duas vezes num lançamento para ver ou editar',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
                 _campoBusca(),
@@ -158,11 +231,46 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_idEmVisualizacao != null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _somenteLeitura ? Icons.visibility_rounded : Icons.edit_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _somenteLeitura ? 'Visualizando lançamento' : 'Editando lançamento',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: _cancelarVisualizacao,
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
             _campoData(),
             const SizedBox(height: 14),
             TextFormField(
               controller: _kmController,
               focusNode: _kmFocusNode,
+              enabled: !_somenteLeitura,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
@@ -179,6 +287,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _valorController,
+              enabled: !_somenteLeitura,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
@@ -195,6 +304,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _observacaoController,
+              enabled: !_somenteLeitura,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'Observação (opcional)',
@@ -204,6 +314,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _embarqueController,
+              enabled: !_somenteLeitura,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'Local de embarque (opcional)',
@@ -214,6 +325,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _destinoController,
+              enabled: !_somenteLeitura,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'Local de destino (opcional)',
@@ -224,21 +336,75 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             const SizedBox(height: 16),
             _previewValorPorKm(),
             const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: provider.salvando ? null : _salvar,
-                child: provider.salvando
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Salvar receita'),
-              ),
-            ),
+            _botoesAcao(provider),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _botoesAcao(ReceitaProvider provider) {
+    // Visualizando (ainda travado): só o botão "Editar".
+    if (_idEmVisualizacao != null && _somenteLeitura) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _habilitarEdicao,
+          icon: const Icon(Icons.edit_rounded, size: 18),
+          label: const Text('Editar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      );
+    }
+
+    // Editando um lançamento existente: "Salvar alterações" + "Cancelar".
+    if (_idEmVisualizacao != null && !_somenteLeitura) {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: provider.salvando ? null : _cancelarVisualizacao,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                side: const BorderSide(color: AppColors.border),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: provider.salvando ? null : _salvar,
+              child: provider.salvando
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Salvar alterações'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Novo lançamento (comportamento padrão).
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: provider.salvando ? null : _salvar,
+        child: provider.salvando
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Text('Salvar receita'),
       ),
     );
   }
@@ -247,22 +413,25 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     return InkWell(
       onTap: _selecionarData,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 12),
-            Text(
-              Formatters.data(_dataSelecionada),
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-            ),
-          ],
+      child: Opacity(
+        opacity: _somenteLeitura ? 0.6 : 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 12),
+              Text(
+                Formatters.data(_dataSelecionada),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -377,7 +546,9 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
       ),
       child: Column(
         children: lancamentosFiltrados.map((r) {
-          return Dismissible(
+          return GestureDetector(
+            onDoubleTap: () => _visualizarLancamento(r),
+            child: Dismissible(
             key: ValueKey(r.id),
             direction: DismissDirection.endToStart,
             confirmDismiss: (_) => _confirmarExclusao(r),
@@ -424,6 +595,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
                     ),
                 ],
               ),
+            ),
             ),
           );
         }).toList(),

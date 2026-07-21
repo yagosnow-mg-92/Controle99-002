@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/receita.dart';
@@ -27,6 +28,7 @@ class ReceitaProvider extends ChangeNotifier {
   }
 
   Future<void> salvar({
+    String? id,
     required DateTime data,
     required double kmRodados,
     required double valorRecebido,
@@ -37,13 +39,21 @@ class ReceitaProvider extends ChangeNotifier {
     salvando = true;
     notifyListeners();
 
+    // Ao editar, preserva a data de criação original do lançamento —
+    // "criado em" não deveria mudar só porque um valor foi corrigido.
+    DateTime criadoEm = DateTime.now();
+    if (id != null) {
+      final existente = lancamentos.where((r) => r.id == id).firstOrNull;
+      if (existente != null) criadoEm = existente.criadoEm;
+    }
+
     final receita = Receita(
-      id: '',
+      id: id ?? '',
       data: data,
       kmRodados: kmRodados,
       valorRecebido: valorRecebido,
       observacao: (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
-      criadoEm: DateTime.now(),
+      criadoEm: criadoEm,
       localEmbarque: (localEmbarque == null || localEmbarque.trim().isEmpty)
           ? null
           : localEmbarque.trim(),

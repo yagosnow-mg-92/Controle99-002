@@ -105,6 +105,8 @@ class CorridaRepositoryImpl implements CorridaRepository {
       'cancelada': 0,
       'km_percorrido': 0,
       'receita_id': null,
+      'local_embarque': null,
+      'local_destino': null,
     });
     return corrida;
   }
@@ -136,11 +138,31 @@ class CorridaRepositoryImpl implements CorridaRepository {
   }
 
   @override
-  Future<void> finalizarCorrida(String corridaId, DateTime horaFim, double kmPercorrido) async {
+  Future<void> atualizarLocalEmbarque(String corridaId, String? local) async {
     final db = await _dbHelper.database;
     await db.update(
       'corridas',
-      {'hora_fim': horaFim.toIso8601String(), 'km_percorrido': kmPercorrido},
+      {'local_embarque': local},
+      where: 'id = ?',
+      whereArgs: [corridaId],
+    );
+  }
+
+  @override
+  Future<void> finalizarCorrida(
+    String corridaId,
+    DateTime horaFim,
+    double kmPercorrido, {
+    String? localDestino,
+  }) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'corridas',
+      {
+        'hora_fim': horaFim.toIso8601String(),
+        'km_percorrido': kmPercorrido,
+        if (localDestino != null) 'local_destino': localDestino,
+      },
       where: 'id = ?',
       whereArgs: [corridaId],
     );
@@ -227,6 +249,8 @@ class CorridaRepositoryImpl implements CorridaRepository {
       cancelada: (map['cancelada'] as int) == 1,
       kmPercorrido: (map['km_percorrido'] as num).toDouble(),
       receitaId: map['receita_id'] as String?,
+      localEmbarque: map['local_embarque'] as String?,
+      localDestino: map['local_destino'] as String?,
     );
   }
 

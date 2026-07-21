@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -37,7 +37,9 @@ class DatabaseHelper {
         valor_recebido REAL NOT NULL,
         valor_por_km REAL NOT NULL,
         observacao TEXT,
-        criado_em TEXT NOT NULL
+        criado_em TEXT NOT NULL,
+        local_embarque TEXT,
+        local_destino TEXT
       )
     ''');
 
@@ -84,7 +86,22 @@ class DatabaseHelper {
   /// a pessoa já tinha lançado.
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
+      // _criarTabelasCorrida já cria `corridas` com as colunas de
+      // embarque/destino incluídas (são a versão atual do schema).
       await _criarTabelasCorrida(db);
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE receitas ADD COLUMN local_embarque TEXT');
+      await db.execute('ALTER TABLE receitas ADD COLUMN local_destino TEXT');
+
+      // Só faz ALTER em `corridas` se ela já existia ANTES desta
+      // migração (veio da v2). Se acabou de ser criada agora mesmo
+      // (alguém pulando direto de v1 para v3), ela já nasce com as
+      // colunas — tentar adicionar de novo daria erro de "coluna duplicada".
+      if (oldVersion >= 2) {
+        await db.execute('ALTER TABLE corridas ADD COLUMN local_embarque TEXT');
+        await db.execute('ALTER TABLE corridas ADD COLUMN local_destino TEXT');
+      }
     }
   }
 
@@ -126,7 +143,9 @@ class DatabaseHelper {
         valor REAL NOT NULL,
         cancelada INTEGER NOT NULL DEFAULT 0,
         km_percorrido REAL NOT NULL DEFAULT 0,
-        receita_id TEXT
+        receita_id TEXT,
+        local_embarque TEXT,
+        local_destino TEXT
       )
     ''');
 

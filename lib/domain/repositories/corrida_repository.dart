@@ -22,7 +22,16 @@ abstract class CorridaRepository {
   });
   Future<Corrida?> corridaAberta(String sessaoId);
   Future<void> atualizarValorCorrida(String corridaId, double novoValor, {bool? cancelada});
-  Future<void> finalizarCorrida(String corridaId, DateTime horaFim, double kmPercorrido);
+
+  /// Chamado ao "Peguei o passageiro" — grava onde o embarque aconteceu.
+  Future<void> atualizarLocalEmbarque(String corridaId, String? local);
+
+  Future<void> finalizarCorrida(
+    String corridaId,
+    DateTime horaFim,
+    double kmPercorrido, {
+    String? localDestino,
+  });
   Future<void> vincularReceita(String corridaId, String receitaId);
 
   Future<void> registrarPontoRota(PontoRota ponto);

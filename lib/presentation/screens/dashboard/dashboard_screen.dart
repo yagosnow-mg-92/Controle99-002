@@ -647,8 +647,9 @@ class _MetaDiaria extends StatelessWidget {
                     ? 'Meta batida! 🎉'
                     : 'Faltam ${Formatters.moeda(falta.toDouble())} para bater a meta',
                 style: TextStyle(
-                  color: atingiu ? AppColors.receita : AppColors.textDisabled,
-                  fontSize: 12,
+                  color: atingiu ? AppColors.receita : AppColors.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -738,7 +739,7 @@ class _ListaUltimosLancamentos extends StatelessWidget {
             title: Text(item.titulo, style: const TextStyle(color: AppColors.textPrimary)),
             subtitle: Text(
               Formatters.data(item.data),
-              style: const TextStyle(color: AppColors.textDisabled, fontSize: 12),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
             ),
             trailing: Text(
               '${item.positivo ? '+' : '-'} ${Formatters.moeda(item.valor)}',

@@ -49,6 +49,7 @@ funcionar direto por cima, sem perder dados nunca mais.
 - [x] Etapa 7 — Metas, alertas e funcionalidades inteligentes
 - [x] Dashboard: período configurável (Dia/Semana/Mês/Personalizado, salvo) + gráfico com eixos, linha reta e valores visíveis
 - [x] Modo **Corrida**: lançamento automático de receita via GPS (online → corrida → passageiro → finalizar), com rastreamento em segundo plano
+- [x] Local de embarque/destino (automático via Corrida, opcional em lançamentos manuais) + menu "Mais" (Indicadores/Configurações) + revisão de contraste
 
 ## Modo Corrida (rastreamento por GPS)
 

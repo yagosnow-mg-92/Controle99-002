@@ -5,6 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/status_sessao.dart';
 import '../../providers/corrida_provider.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/receita_provider.dart';
 
 class CorridaScreen extends StatefulWidget {
   const CorridaScreen({super.key});
@@ -44,7 +46,15 @@ class _CorridaScreenState extends State<CorridaScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(mensagem, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text(
+              mensagem,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
@@ -126,7 +136,10 @@ class _CorridaScreenState extends State<CorridaScreen> {
               mensagem: 'Informe o valor da taxa de deslocamento (geralmente diferente do valor da corrida).',
               valorInicial: provider.corridaAtual?.valor,
             );
-            if (valor != null) await provider.cancelarCorrida(valor);
+            if (valor != null) {
+              await provider.cancelarCorrida(valor);
+              await _atualizarReceitaEDashboard();
+            }
           },
           onPegarPassageiro: provider.pegarPassageiro,
         );
@@ -134,9 +147,23 @@ class _CorridaScreenState extends State<CorridaScreen> {
         return _TelaComPassageiro(
           provider: provider,
           formatarDuracao: _formatarDuracao,
-          onFinalizar: provider.finalizarCorrida,
+          onFinalizar: () async {
+            await provider.finalizarCorrida();
+            await _atualizarReceitaEDashboard();
+          },
         );
     }
+  }
+
+  /// A Corrida lança receitas automaticamente (ao finalizar ou cancelar),
+  /// mas isso acontece por fora das telas de Receita/Painel — elas
+  /// precisam ser avisadas pra recarregar, senão o lançamento novo só
+  /// aparece depois que o app for reaberto.
+  Future<void> _atualizarReceitaEDashboard() async {
+    if (!mounted) return;
+    await context.read<ReceitaProvider>().carregar();
+    if (!mounted) return;
+    await context.read<DashboardProvider>().carregar();
   }
 }
 
@@ -261,13 +288,13 @@ class _CabecalhoStatus extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.location_on_rounded, color: AppColors.textDisabled, size: 14),
+                const Icon(Icons.location_on_rounded, color: AppColors.textSecondary, size: 15),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     endereco!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textDisabled, fontSize: 12),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

@@ -432,7 +432,7 @@ class _DespesasScreenState extends State<DespesasScreen> {
               ),
               subtitle: Text(
                 Formatters.data(d.data),
-                style: const TextStyle(color: AppColors.textDisabled, fontSize: 12),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
               ),
               trailing: Text(
                 '- ${Formatters.moeda(d.valor)}',

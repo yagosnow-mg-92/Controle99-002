@@ -5,6 +5,8 @@ class Receita {
   final double valorRecebido;
   final String? observacao;
   final DateTime criadoEm;
+  final String? localEmbarque;
+  final String? localDestino;
 
   const Receita({
     required this.id,
@@ -13,6 +15,8 @@ class Receita {
     required this.valorRecebido,
     this.observacao,
     required this.criadoEm,
+    this.localEmbarque,
+    this.localDestino,
   });
 
   /// Valor recebido por quilômetro rodado. Regra de negócio central do app.
@@ -25,6 +29,8 @@ class Receita {
     double? valorRecebido,
     String? observacao,
     DateTime? criadoEm,
+    String? localEmbarque,
+    String? localDestino,
   }) {
     return Receita(
       id: id ?? this.id,
@@ -33,6 +39,8 @@ class Receita {
       valorRecebido: valorRecebido ?? this.valorRecebido,
       observacao: observacao ?? this.observacao,
       criadoEm: criadoEm ?? this.criadoEm,
+      localEmbarque: localEmbarque ?? this.localEmbarque,
+      localDestino: localDestino ?? this.localDestino,
     );
   }
 }

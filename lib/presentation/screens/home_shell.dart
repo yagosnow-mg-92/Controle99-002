@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'corrida/corrida_screen.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'despesas/despesas_screen.dart';
-import 'indicadores/indicadores_screen.dart';
-import 'configuracoes/configuracoes_screen.dart';
+import 'mais/mais_screen.dart';
 import 'receita/receita_screen.dart';
 
 /// Casca de navegação principal. Mantém as áreas do app acessíveis
@@ -24,8 +23,7 @@ class _HomeShellState extends State<HomeShell> {
     CorridaScreen(),
     ReceitaScreen(),
     DespesasScreen(),
-    IndicadoresScreen(),
-    ConfiguracoesScreen(),
+    MaisScreen(),
   ];
 
   @override
@@ -40,8 +38,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.two_wheeler_rounded), label: 'Corrida'),
           NavigationDestination(icon: Icon(Icons.add_circle_outline_rounded), label: 'Receita'),
           NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Despesas'),
-          NavigationDestination(icon: Icon(Icons.bar_chart_rounded), label: 'Indicadores'),
-          NavigationDestination(icon: Icon(Icons.settings_rounded), label: 'Ajustes'),
+          NavigationDestination(icon: Icon(Icons.grid_view_rounded), label: 'Mais'),
         ],
       ),
     );

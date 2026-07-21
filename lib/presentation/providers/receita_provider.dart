@@ -31,6 +31,8 @@ class ReceitaProvider extends ChangeNotifier {
     required double kmRodados,
     required double valorRecebido,
     String? observacao,
+    String? localEmbarque,
+    String? localDestino,
   }) async {
     salvando = true;
     notifyListeners();
@@ -42,6 +44,12 @@ class ReceitaProvider extends ChangeNotifier {
       valorRecebido: valorRecebido,
       observacao: (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
       criadoEm: DateTime.now(),
+      localEmbarque: (localEmbarque == null || localEmbarque.trim().isEmpty)
+          ? null
+          : localEmbarque.trim(),
+      localDestino: (localDestino == null || localDestino.trim().isEmpty)
+          ? null
+          : localDestino.trim(),
     );
 
     await _repository.salvar(receita);

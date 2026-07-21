@@ -163,13 +163,21 @@ class CorridaProvider extends ChangeNotifier {
     notifyListeners();
 
     await _registrarEvento(sessaoAtual!.id, TipoEvento.iniciouCorrida);
+    // Guarda como fallback de "local de embarque": se a corrida for
+    // cancelada antes de pegar o passageiro, é o melhor endereço que
+    // temos. Se o passageiro for pego de fato, `pegarPassageiro()`
+    // substitui por um endereço mais preciso.
+    final enderecoInicio = enderecoAtual;
 
     final corrida = await _repository.criarCorrida(
       sessaoId: sessaoAtual!.id,
       horaInicio: DateTime.now(),
       valor: valor,
     );
-    corridaAtual = corrida;
+    corridaAtual = corrida.copyWith(localEmbarque: enderecoInicio);
+    if (enderecoInicio != null) {
+      await _repository.atualizarLocalEmbarque(corrida.id, enderecoInicio);
+    }
 
     await _repository.atualizarStatusSessao(sessaoAtual!.id, StatusSessao.corridaIniciada);
     sessaoAtual = sessaoAtual!.copyWith(status: StatusSessao.corridaIniciada);
@@ -181,17 +189,38 @@ class CorridaProvider extends ChangeNotifier {
   }
 
   /// Cancelar a corrida — pede o valor da taxa de deslocamento e volta
-  /// para "online".
+  /// para "online". A taxa também é lançada como Receita (é dinheiro
+  /// recebido de verdade, só que menor que uma corrida completa).
   Future<void> cancelarCorrida(double valorTaxa) async {
     if (sessaoAtual == null || corridaAtual == null) return;
     processando = true;
     notifyListeners();
 
     await _registrarEvento(sessaoAtual!.id, TipoEvento.cancelouCorrida);
+    final enderecoFim = enderecoAtual;
 
     final km = await _calcularKmDaCorrida(corridaAtual!.id);
     await _repository.atualizarValorCorrida(corridaAtual!.id, valorTaxa, cancelada: true);
-    await _repository.finalizarCorrida(corridaAtual!.id, DateTime.now(), km);
+    await _repository.finalizarCorrida(
+      corridaAtual!.id,
+      DateTime.now(),
+      km,
+      localDestino: enderecoFim,
+    );
+
+    final receitaId = _uuid.v4();
+    final receita = Receita(
+      id: receitaId,
+      data: DateTime.now(),
+      kmRodados: km,
+      valorRecebido: valorTaxa,
+      observacao: 'Taxa de cancelamento — lançado automaticamente pela função Corrida',
+      criadoEm: DateTime.now(),
+      localEmbarque: corridaAtual!.localEmbarque,
+      localDestino: enderecoFim,
+    );
+    await _receitaRepository.salvar(receita);
+    await _repository.vincularReceita(corridaAtual!.id, receitaId);
 
     corridaAtual = null;
     await _repository.atualizarStatusSessao(sessaoAtual!.id, StatusSessao.online);
@@ -204,12 +233,19 @@ class CorridaProvider extends ChangeNotifier {
   }
 
   /// Peguei o passageiro — a corrida continua, só muda o status visual.
+  /// Esse é o endereço que vira "local de embarque" no lançamento final.
   Future<void> pegarPassageiro() async {
-    if (sessaoAtual == null) return;
+    if (sessaoAtual == null || corridaAtual == null) return;
     processando = true;
     notifyListeners();
 
     await _registrarEvento(sessaoAtual!.id, TipoEvento.pegouPassageiro);
+    final enderecoEmbarque = enderecoAtual;
+
+    if (enderecoEmbarque != null) {
+      await _repository.atualizarLocalEmbarque(corridaAtual!.id, enderecoEmbarque);
+      corridaAtual = corridaAtual!.copyWith(localEmbarque: enderecoEmbarque);
+    }
 
     await _repository.atualizarStatusSessao(sessaoAtual!.id, StatusSessao.comPassageiro);
     sessaoAtual = sessaoAtual!.copyWith(status: StatusSessao.comPassageiro);
@@ -228,9 +264,15 @@ class CorridaProvider extends ChangeNotifier {
     notifyListeners();
 
     await _registrarEvento(sessaoAtual!.id, TipoEvento.finalizouCorrida);
+    final enderecoFim = enderecoAtual;
 
     final km = await _calcularKmDaCorrida(corridaAtual!.id);
-    await _repository.finalizarCorrida(corridaAtual!.id, DateTime.now(), km);
+    await _repository.finalizarCorrida(
+      corridaAtual!.id,
+      DateTime.now(),
+      km,
+      localDestino: enderecoFim,
+    );
 
     final receitaId = _uuid.v4();
     final receita = Receita(
@@ -240,6 +282,8 @@ class CorridaProvider extends ChangeNotifier {
       valorRecebido: corridaAtual!.valor,
       observacao: 'Lançado automaticamente pela função Corrida',
       criadoEm: DateTime.now(),
+      localEmbarque: corridaAtual!.localEmbarque,
+      localDestino: enderecoFim,
     );
     await _receitaRepository.salvar(receita);
     await _repository.vincularReceita(corridaAtual!.id, receitaId);

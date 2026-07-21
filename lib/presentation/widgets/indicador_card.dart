@@ -67,7 +67,11 @@ class IndicadorCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               subtitulo!,
-              style: const TextStyle(color: AppColors.textDisabled, fontSize: 11.5),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ],

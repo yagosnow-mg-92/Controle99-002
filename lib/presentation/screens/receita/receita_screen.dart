@@ -19,6 +19,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   final _kmController = TextEditingController();
   final _valorController = TextEditingController();
   final _observacaoController = TextEditingController();
+  final _embarqueController = TextEditingController();
+  final _destinoController = TextEditingController();
   final _kmFocusNode = FocusNode();
 
   DateTime _dataSelecionada = DateTime.now();
@@ -40,6 +42,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _kmController.dispose();
     _valorController.dispose();
     _observacaoController.dispose();
+    _embarqueController.dispose();
+    _destinoController.dispose();
     _kmFocusNode.dispose();
     super.dispose();
   }
@@ -77,6 +81,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
           kmRodados: km,
           valorRecebido: valor,
           observacao: _observacaoController.text,
+          localEmbarque: _embarqueController.text,
+          localDestino: _destinoController.text,
         );
 
     // Mantém os providers em sincronia: assim que uma receita é salva,
@@ -90,6 +96,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     _kmController.clear();
     _valorController.clear();
     _observacaoController.clear();
+    _embarqueController.clear();
+    _destinoController.clear();
     setState(() => _valorPorKmPreview = 0);
     // A data NÃO é resetada de propósito: ao lançar vários dias
     // retroativos seguidos, o usuário espera continuar no mesmo dia
@@ -191,6 +199,26 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
               decoration: const InputDecoration(
                 labelText: 'Observação (opcional)',
                 labelStyle: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _embarqueController,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Local de embarque (opcional)',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+                prefixIcon: Icon(Icons.trip_origin_rounded, color: AppColors.textSecondary, size: 20),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _destinoController,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Local de destino (opcional)',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+                prefixIcon: Icon(Icons.location_on_rounded, color: AppColors.textSecondary, size: 20),
               ),
             ),
             const SizedBox(height: 16),
@@ -377,9 +405,24 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
                 Formatters.moeda(r.valorRecebido),
                 style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
               ),
-              subtitle: Text(
-                '${Formatters.data(r.data)} · ${Formatters.km(r.kmRodados)} · ${Formatters.moeda(r.valorPorKm)}/km',
-                style: const TextStyle(color: AppColors.textDisabled, fontSize: 12),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${Formatters.data(r.data)} · ${Formatters.km(r.kmRodados)} · ${Formatters.moeda(r.valorPorKm)}/km',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                  ),
+                  if (r.localEmbarque != null || r.localDestino != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '${r.localEmbarque ?? '?'} → ${r.localDestino ?? '?'}',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
               ),
             ),
           );

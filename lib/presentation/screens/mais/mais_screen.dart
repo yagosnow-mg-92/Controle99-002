@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../screens/configuracoes/configuracoes_screen.dart';
-import '../screens/indicadores/indicadores_screen.dart';
+import '../../../core/theme/app_colors.dart';
+import '../configuracoes/configuracoes_screen.dart';
+import '../indicadores/indicadores_screen.dart';
 
 /// Menu com as opções secundárias do app. Existe pra não lotar a barra
 /// inferior — à medida que novas telas forem entrando (relatórios,

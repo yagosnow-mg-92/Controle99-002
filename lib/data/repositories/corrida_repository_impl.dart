@@ -189,6 +189,13 @@ class CorridaRepositoryImpl implements CorridaRepository {
       'timestamp': ponto.timestamp.toIso8601String(),
       'latitude': ponto.latitude,
       'longitude': ponto.longitude,
+      'precisao_metros': ponto.precisaoMetros,
+      'velocidade_mps': ponto.velocidadeMetrosPorSegundo,
+      'direcao_graus': ponto.direcaoGraus,
+      'altitude_metros': ponto.altitudeMetros,
+      'precisao_velocidade_mps': ponto.precisaoVelocidadeMetrosPorSegundo,
+      'localizacao_simulada': ponto.localizacaoSimulada ? 1 : 0,
+      'aceito_calculo': ponto.aceitoNoCalculo ? 1 : 0,
     });
   }
 
@@ -197,8 +204,114 @@ class CorridaRepositoryImpl implements CorridaRepository {
     final db = await _dbHelper.database;
     final rows = await db.query(
       'pontos_rota',
+      where: 'corrida_id = ? AND aceito_calculo = 1',
+      whereArgs: [corridaId],
+      orderBy: 'timestamp ASC',
+    );
+    return rows.map(_pontoFromMap).toList();
+  }
+
+  @override
+  Future<List<PontoRota>> todosPontosDaCorrida(String corridaId) async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'pontos_rota',
       where: 'corrida_id = ?',
       whereArgs: [corridaId],
+      orderBy: 'timestamp ASC',
+    );
+    return rows.map(_pontoFromMap).toList();
+  }
+
+  @override
+  Future<List<PontoRota>> todosPontosDaSessao(String sessaoId) async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'pontos_rota',
+      where: 'sessao_id = ?',
+      whereArgs: [sessaoId],
+      orderBy: 'timestamp ASC',
+    );
+    return rows.map(_pontoFromMap).toList();
+  }
+
+  @override
+  Future<List<PontoRota>> pontosDeDeslocamentoNaoLancados(String sessaoId) async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'pontos_rota',
+      where: 'sessao_id = ? AND corrida_id IS NULL AND lancado_como_deslocamento = 0',
+      whereArgs: [sessaoId],
+      orderBy: 'timestamp ASC',
+    );
+    return rows.map(_pontoFromMap).toList();
+  }
+
+  @override
+  Future<void> salvarDeslocamentoLivre({
+    required String id,
+    required String sessaoId,
+    required DateTime inicio,
+    required DateTime fim,
+    required double kmPercorrido,
+    required String receitaId,
+  }) async {
+    final db = await _dbHelper.database;
+    await db.insert('deslocamentos_livres', {
+      'id': id,
+      'sessao_id': sessaoId,
+      'inicio': inicio.toIso8601String(),
+      'fim': fim.toIso8601String(),
+      'km_percorrido': kmPercorrido,
+      'receita_id': receitaId,
+    });
+  }
+
+  @override
+  Future<void> marcarPontosComoDeslocamentoLancado(List<String> pontoIds) async {
+    if (pontoIds.isEmpty) return;
+    final db = await _dbHelper.database;
+    final marcadores = List.filled(pontoIds.length, '?').join(', ');
+    await db.update(
+      'pontos_rota',
+      {'lancado_como_deslocamento': 1},
+      where: 'id IN ($marcadores)',
+      whereArgs: pontoIds,
+    );
+  }
+
+  @override
+  Future<void> vincularPontosAoDeslocamento(List<String> pontoIds, String deslocamentoId) async {
+    if (pontoIds.isEmpty) return;
+    final db = await _dbHelper.database;
+    final marcadores = List.filled(pontoIds.length, '?').join(', ');
+    await db.update(
+      'pontos_rota',
+      {'lancado_como_deslocamento': 1, 'deslocamento_id': deslocamentoId},
+      where: 'id IN ($marcadores)',
+      whereArgs: pontoIds,
+    );
+  }
+
+  @override
+  Future<List<PontoRota>> pontosDoDeslocamentoPorReceita(String receitaId) async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'pontos_rota',
+      where: 'deslocamento_id = (SELECT id FROM deslocamentos_livres WHERE receita_id = ?)',
+      whereArgs: [receitaId],
+      orderBy: 'timestamp ASC',
+    );
+    return rows.map(_pontoFromMap).toList();
+  }
+
+  @override
+  Future<List<PontoRota>> pontosDaCorridaPorReceita(String receitaId) async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'pontos_rota',
+      where: 'corrida_id = (SELECT id FROM corridas WHERE receita_id = ?)',
+      whereArgs: [receitaId],
       orderBy: 'timestamp ASC',
     );
     return rows.map(_pontoFromMap).toList();
@@ -262,6 +375,14 @@ class CorridaRepositoryImpl implements CorridaRepository {
       timestamp: DateTime.parse(map['timestamp'] as String),
       latitude: (map['latitude'] as num).toDouble(),
       longitude: (map['longitude'] as num).toDouble(),
+      precisaoMetros: (map['precisao_metros'] as num?)?.toDouble(),
+      velocidadeMetrosPorSegundo: (map['velocidade_mps'] as num?)?.toDouble(),
+      direcaoGraus: (map['direcao_graus'] as num?)?.toDouble(),
+      altitudeMetros: (map['altitude_metros'] as num?)?.toDouble(),
+      precisaoVelocidadeMetrosPorSegundo:
+          (map['precisao_velocidade_mps'] as num?)?.toDouble(),
+      localizacaoSimulada: (map['localizacao_simulada'] as int? ?? 0) == 1,
+      aceitoNoCalculo: (map['aceito_calculo'] as int? ?? 1) == 1,
     );
   }
 }

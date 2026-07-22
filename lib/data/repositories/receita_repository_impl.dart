@@ -75,6 +75,9 @@ class ReceitaRepositoryImpl implements ReceitaRepository {
       'criado_em': r.criadoEm.toIso8601String(),
       'local_embarque': r.localEmbarque,
       'local_destino': r.localDestino,
+      'tipo': r.tipo.name,
+      'hora_inicio': r.horaInicio?.toIso8601String(),
+      'hora_fim': r.horaFim?.toIso8601String(),
     };
   }
 
@@ -88,6 +91,12 @@ class ReceitaRepositoryImpl implements ReceitaRepository {
       criadoEm: DateTime.parse(map['criado_em'] as String),
       localEmbarque: map['local_embarque'] as String?,
       localDestino: map['local_destino'] as String?,
+      tipo: TipoReceita.values.firstWhere(
+        (tipo) => tipo.name == map['tipo'],
+        orElse: () => TipoReceita.outro,
+      ),
+      horaInicio: map['hora_inicio'] != null ? DateTime.parse(map['hora_inicio'] as String) : null,
+      horaFim: map['hora_fim'] != null ? DateTime.parse(map['hora_fim'] as String) : null,
     );
   }
 }

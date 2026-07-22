@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -39,7 +39,10 @@ class DatabaseHelper {
         observacao TEXT,
         criado_em TEXT NOT NULL,
         local_embarque TEXT,
-        local_destino TEXT
+        local_destino TEXT,
+        tipo TEXT NOT NULL DEFAULT 'outro',
+        hora_inicio TEXT,
+        hora_fim TEXT
       )
     ''');
 
@@ -103,6 +106,44 @@ class DatabaseHelper {
         await db.execute('ALTER TABLE corridas ADD COLUMN local_destino TEXT');
       }
     }
+    if (oldVersion < 4) {
+      // Lançamentos existentes são manuais/legados, portanto entram como
+      // "Outro". Os novos registros de GPS informam Corrida ou Deslocamento.
+      await db.execute("ALTER TABLE receitas ADD COLUMN tipo TEXT NOT NULL DEFAULT 'outro'");
+      // Para quem vem da v1, a tabela acabou de ser criada acima com a
+      // coluna atual. Nas versões 2 e 3 ela já existia e precisa do ALTER.
+      if (oldVersion >= 2) {
+        await db.execute(
+          'ALTER TABLE pontos_rota ADD COLUMN lancado_como_deslocamento INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+    }
+    if (oldVersion < 5) {
+      // Mantemos todos os dados brutos para mapa/auditoria, mas guardamos
+      // também quais pontos passaram pelo filtro de quilometragem.
+      // Quem vem da v1 recebeu a tabela atual em `_criarTabelasCorrida`.
+      if (oldVersion >= 2) {
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN precisao_metros REAL');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN velocidade_mps REAL');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN direcao_graus REAL');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN altitude_metros REAL');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN precisao_velocidade_mps REAL');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN localizacao_simulada INTEGER NOT NULL DEFAULT 0');
+        await db.execute('ALTER TABLE pontos_rota ADD COLUMN aceito_calculo INTEGER NOT NULL DEFAULT 1');
+      }
+    }
+    if (oldVersion < 6 && oldVersion >= 2) {
+      await db.execute('ALTER TABLE pontos_rota ADD COLUMN deslocamento_id TEXT');
+      await _criarTabelaDeslocamentosLivres(db);
+    }
+    if (oldVersion < 7) {
+      // Hora de início/fim de cada lançamento gerado via GPS (corrida ou
+      // deslocamento livre), usadas em relatórios futuros de tempo parado
+      // e no botão de mapa. Lançamentos manuais ficam com esses campos
+      // nulos — não têm um trajeto de GPS associado.
+      await db.execute('ALTER TABLE receitas ADD COLUMN hora_inicio TEXT');
+      await db.execute('ALTER TABLE receitas ADD COLUMN hora_fim TEXT');
+    }
   }
 
   Future<void> _criarTabelasCorrida(Database db) async {
@@ -160,7 +201,33 @@ class DatabaseHelper {
         corrida_id TEXT,
         timestamp TEXT NOT NULL,
         latitude REAL NOT NULL,
-        longitude REAL NOT NULL
+        longitude REAL NOT NULL,
+        lancado_como_deslocamento INTEGER NOT NULL DEFAULT 0,
+        precisao_metros REAL,
+        velocidade_mps REAL,
+        direcao_graus REAL,
+        altitude_metros REAL,
+        precisao_velocidade_mps REAL,
+        localizacao_simulada INTEGER NOT NULL DEFAULT 0,
+        aceito_calculo INTEGER NOT NULL DEFAULT 1,
+        deslocamento_id TEXT
+      )
+    ''');
+
+    await _criarTabelaDeslocamentosLivres(db);
+  }
+
+  /// Cada trecho livre recebe identidade própria para que o lançamento de
+  /// receita possa abrir exatamente a rota correspondente em um mapa futuro.
+  Future<void> _criarTabelaDeslocamentosLivres(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS deslocamentos_livres (
+        id TEXT PRIMARY KEY,
+        sessao_id TEXT NOT NULL,
+        inicio TEXT NOT NULL,
+        fim TEXT NOT NULL,
+        km_percorrido REAL NOT NULL,
+        receita_id TEXT NOT NULL
       )
     ''');
   }

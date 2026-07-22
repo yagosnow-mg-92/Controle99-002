@@ -35,7 +35,29 @@ abstract class CorridaRepository {
   Future<void> vincularReceita(String corridaId, String receitaId);
 
   Future<void> registrarPontoRota(PontoRota ponto);
+  /// Pontos aprovados pelo filtro, usados no cálculo financeiro.
   Future<List<PontoRota>> pontosDaCorrida(String corridaId);
+  /// Traçado completo, inclusive pontos descartados no cálculo, para mapa e auditoria.
+  Future<List<PontoRota>> todosPontosDaCorrida(String corridaId);
+  Future<List<PontoRota>> todosPontosDaSessao(String sessaoId);
+
+  Future<List<PontoRota>> pontosDeDeslocamentoNaoLancados(String sessaoId);
+  Future<void> marcarPontosComoDeslocamentoLancado(List<String> pontoIds);
+  Future<void> salvarDeslocamentoLivre({
+    required String id,
+    required String sessaoId,
+    required DateTime inicio,
+    required DateTime fim,
+    required double kmPercorrido,
+    required String receitaId,
+  });
+  Future<void> vincularPontosAoDeslocamento(List<String> pontoIds, String deslocamentoId);
+  Future<List<PontoRota>> pontosDoDeslocamentoPorReceita(String receitaId);
+
+  /// Pontos de rota de uma CORRIDA a partir do id da receita gerada por
+  /// ela — usado pelo botão de mapa na tela de Receita, que só tem o id
+  /// da receita em mãos, não o da corrida.
+  Future<List<PontoRota>> pontosDaCorridaPorReceita(String receitaId);
 
   /// Lista as sessões já encerradas, mais recentes primeiro — base para
   /// os relatórios futuros mencionados pelo usuário.

@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/receita.dart';
+import '../../../domain/repositories/corrida_repository.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/receita_provider.dart';
+import 'mapa_trajeto_screen.dart';
 
 class ReceitaScreen extends StatefulWidget {
   const ReceitaScreen({super.key});
@@ -27,10 +29,15 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
   DateTime _dataSelecionada = DateTime.now();
   double _valorPorKmPreview = 0;
   String _buscaTexto = '';
+  TipoReceita _tipoSelecionado = TipoReceita.outro;
 
   /// Quando não-nulo, o formulário está mostrando um lançamento já
   /// existente (aberto com duplo toque na lista), em vez de um novo.
   String? _idEmVisualizacao;
+
+  /// O lançamento completo sendo visualizado — usado pra saber o tipo
+  /// (corrida/deslocamento/manual) e habilitar o botão de mapa.
+  Receita? _receitaEmVisualizacao;
 
   /// Enquanto true, os campos ficam travados (só leitura) — precisa
   /// tocar em "Editar" pra poder alterar algo.
@@ -82,8 +89,10 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     setState(() {
       _dataSelecionada = r.data;
       _idEmVisualizacao = r.id;
+      _receitaEmVisualizacao = r;
       _somenteLeitura = true;
       _valorPorKmPreview = km > 0 ? valor / km : 0;
+      _tipoSelecionado = r.tipo;
     });
 
     _scrollController.animateTo(
@@ -108,8 +117,10 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     setState(() {
       _dataSelecionada = DateTime.now();
       _idEmVisualizacao = null;
+      _receitaEmVisualizacao = null;
       _somenteLeitura = false;
       _valorPorKmPreview = 0;
+      _tipoSelecionado = TipoReceita.outro;
     });
   }
 
@@ -143,6 +154,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
           observacao: _observacaoController.text,
           localEmbarque: _embarqueController.text,
           localDestino: _destinoController.text,
+          tipo: _tipoSelecionado,
         );
 
     // Mantém os providers em sincronia: assim que uma receita é salva,
@@ -162,6 +174,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
       _valorPorKmPreview = 0;
       _idEmVisualizacao = null;
       _somenteLeitura = false;
+      _tipoSelecionado = TipoReceita.outro;
       // Ao editar um lançamento, volta pra data de hoje (o contexto
       // mudou). Ao criar um novo, mantém a data — ver comentário abaixo.
       if (editando) _dataSelecionada = DateTime.now();
@@ -267,6 +280,22 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
             ],
             _campoData(),
             const SizedBox(height: 14),
+            DropdownButtonFormField<TipoReceita>(
+              value: _tipoSelecionado,
+              decoration: const InputDecoration(
+                labelText: 'Tipo de lançamento',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+              ),
+              dropdownColor: AppColors.surfaceElevated,
+              style: const TextStyle(color: AppColors.textPrimary),
+              items: TipoReceita.values
+                  .map((tipo) => DropdownMenuItem(value: tipo, child: Text(tipo.descricao)))
+                  .toList(),
+              onChanged: _somenteLeitura ? null : (tipo) {
+                if (tipo != null) setState(() => _tipoSelecionado = tipo);
+              },
+            ),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _kmController,
               focusNode: _kmFocusNode,
@@ -297,7 +326,10 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
               ),
               validator: (valor) {
                 final numero = double.tryParse((valor ?? '').replaceAll(',', '.'));
-                if (numero == null || numero <= 0) return 'Informe um valor recebido válido';
+                if (numero == null || numero < 0) return 'Informe um valor recebido válido';
+                if (_tipoSelecionado != TipoReceita.deslocamentoLivre && numero == 0) {
+                  return 'Informe um valor recebido válido';
+                }
                 return null;
               },
             ),
@@ -343,21 +375,62 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
     );
   }
 
-  Widget _botoesAcao(ReceitaProvider provider) {
-    // Visualizando (ainda travado): só o botão "Editar".
-    if (_idEmVisualizacao != null && _somenteLeitura) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _habilitarEdicao,
-          icon: const Icon(Icons.edit_rounded, size: 18),
-          label: const Text('Editar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
+  Future<void> _abrirMapa() async {
+    final receita = _receitaEmVisualizacao;
+    if (receita == null || !receita.temTrajetoGps) return;
+
+    final repository = context.read<CorridaRepository>();
+    final pontos = receita.tipo == TipoReceita.corrida
+        ? await repository.pontosDaCorridaPorReceita(receita.id)
+        : await repository.pontosDoDeslocamentoPorReceita(receita.id);
+
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MapaTrajetoScreen(
+          pontos: pontos,
+          titulo: receita.tipo == TipoReceita.corrida ? 'Trajeto da corrida' : 'Trajeto do deslocamento',
         ),
+      ),
+    );
+  }
+
+  Widget _botoesAcao(ReceitaProvider provider) {
+    // Visualizando (ainda travado): "Ver mapa" (se tiver trajeto de GPS) + "Editar".
+    if (_idEmVisualizacao != null && _somenteLeitura) {
+      final temMapa = _receitaEmVisualizacao?.temTrajetoGps ?? false;
+      return Column(
+        children: [
+          if (temMapa) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _abrirMapa,
+                icon: const Icon(Icons.map_rounded, size: 18),
+                label: const Text('Ver mapa do trajeto'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.lucro,
+                  side: const BorderSide(color: AppColors.lucro),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _habilitarEdicao,
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text('Editar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -519,7 +592,8 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
         : provider.lancamentos.where((r) {
             return r.valorRecebido.toString().contains(busca) ||
                 r.kmRodados.toString().contains(busca) ||
-                (r.observacao ?? '').toLowerCase().contains(busca);
+                (r.observacao ?? '').toLowerCase().contains(busca) ||
+                r.tipo.descricao.toLowerCase().contains(busca);
           }).toList();
 
     if (lancamentosFiltrados.isEmpty) {
@@ -580,7 +654,7 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${Formatters.data(r.data)} · ${Formatters.km(r.kmRodados)} · ${Formatters.moeda(r.valorPorKm)}/km',
+                    '${r.tipo.descricao} · ${Formatters.data(r.data)} · ${Formatters.km(r.kmRodados)} · ${Formatters.moeda(r.valorPorKm)}/km',
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                   ),
                   if (r.localEmbarque != null || r.localDestino != null)

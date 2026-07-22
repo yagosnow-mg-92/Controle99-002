@@ -35,6 +35,7 @@ class ReceitaProvider extends ChangeNotifier {
     String? observacao,
     String? localEmbarque,
     String? localDestino,
+    TipoReceita tipo = TipoReceita.outro,
   }) async {
     salvando = true;
     notifyListeners();
@@ -60,6 +61,7 @@ class ReceitaProvider extends ChangeNotifier {
       localDestino: (localDestino == null || localDestino.trim().isEmpty)
           ? null
           : localDestino.trim(),
+      tipo: tipo,
     );
 
     await _repository.salvar(receita);
